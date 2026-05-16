@@ -1,0 +1,421 @@
+ * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'MS Sans Serif', 'Microsoft Sans Serif', 'Fixedsys', Tahoma, sans-serif;
+            background: #008080;
+            color: #000;
+            min-height: 100vh;
+            font-size: 12px;
+            image-rendering: pixelated;
+        }
+        
+        .desktop {
+            padding: 10px;
+            min-height: 100vh;
+        }
+        
+        /* Окно в стиле Win95 */
+        .window {
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            border-left: 2px solid #dfdfdf;
+            border-right: 2px solid #0a0a0a;
+            border-bottom: 2px solid #0a0a0a;
+            box-shadow: 1px 1px 0 #000;
+            margin-bottom: 0;
+            height: calc(100vh - 20px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .window.maximized {
+            width: 100% !important;
+            height: 100% !important;
+            top: 0 !important;
+            left: 0 !important;
+        }
+        
+        .title-bar {
+            background: linear-gradient(90deg, #000080, #1084d0);
+            color: white;
+            padding: 2px 3px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: default;
+            height: 24px;
+        }
+        
+        .title-bar-text {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .title-bar-text img {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .title-bar-buttons {
+            display: flex;
+            gap: 2px;
+        }
+        
+        .title-bar-buttons button {
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            border-left: 2px solid #dfdfdf;
+            border-right: 2px solid #0a0a0a;
+            border-bottom: 2px solid #0a0a0a;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'MS Sans Serif';
+            font-weight: bold;
+            color: #000;
+            line-height: 1;
+        }
+        
+        .title-bar-buttons button:active {
+            border-top: 2px solid #0a0a0a;
+            border-left: 2px solid #0a0a0a;
+            border-right: 2px solid #dfdfdf;
+            border-bottom: 2px solid #dfdfdf;
+        }
+        
+        .menu-bar {
+            background: #c0c0c0;
+            padding: 2px 5px;
+            display: flex;
+            gap: 5px;
+            border-bottom: 1px solid #808080;
+            font-size: 12px;
+        }
+        
+        .menu-bar span {
+            padding: 2px 6px;
+            cursor: pointer;
+        }
+        
+        .menu-bar span:hover {
+            background: #000080;
+            color: white;
+        }
+        
+        .toolbar {
+            background: #c0c0c0;
+            padding: 4px;
+            display: flex;
+            gap: 3px;
+            border-bottom: 1px solid #808080;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar button {
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            border-left: 2px solid #dfdfdf;
+            border-right: 2px solid #0a0a0a;
+            border-bottom: 2px solid #0a0a0a;
+            padding: 2px 10px;
+            font-family: 'MS Sans Serif';
+            font-size: 11px;
+            cursor: pointer;
+            min-width: 28px;
+            white-space: nowrap;
+        }
+        
+        .toolbar button:active {
+            border-top: 2px solid #0a0a0a;
+            border-left: 2px solid #0a0a0a;
+            border-right: 2px solid #dfdfdf;
+            border-bottom: 2px solid #dfdfdf;
+        }
+        
+        .status-bar {
+            background: #c0c0c0;
+            border-top: 1px solid #808080;
+            padding: 3px 5px;
+            font-size: 11px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .client-area {
+            flex: 1;
+            background: #ffffff;
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-right: 2px solid #dfdfdf;
+            border-bottom: 2px solid #dfdfdf;
+            padding: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .board {
+            display: flex;
+            gap: 0;
+            flex: 1;
+            overflow-x: auto;
+        }
+        
+        .column {
+            background: #c0c0c0;
+            min-width: 300px;
+            max-width: 300px;
+            display: flex;
+            flex-direction: column;
+            margin-right: 0;
+            border-right: 1px solid #808080;
+        }
+        
+        .column:last-child {
+            border-right: none;
+        }
+        
+        .column-header {
+            background: #c0c0c0;
+            padding: 4px 8px;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #808080;
+        }
+        
+        .column-header .count {
+            background: #ffffff;
+            border: 1px solid #808080;
+            padding: 1px 6px;
+            font-size: 11px;
+        }
+        
+        .column-body {
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-height: 200px;
+            background: #ffffff;
+            overflow-y: auto;
+        }
+        
+        .card {
+            background: #ffffcc;
+            border: 1px solid #808080;
+            padding: 8px;
+            cursor: grab;
+            font-size: 11px;
+            position: relative;
+        }
+        
+        .card:hover {
+            border: 1px solid #000;
+        }
+        
+        .card:active {
+            cursor: grabbing;
+        }
+        
+        .card-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: #000080;
+        }
+        
+        .card-desc {
+            font-size: 11px;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        
+        .card-meta {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            font-size: 10px;
+            align-items: center;
+        }
+        
+        .priority {
+            padding: 1px 4px;
+            font-weight: bold;
+            font-size: 10px;
+            border: 1px solid #808080;
+        }
+        
+        .priority-LOW { background: #c0ffc0; color: #006400; }
+        .priority-MEDIUM { background: #ffff80; color: #666600; }
+        .priority-HIGH { background: #ffcc80; color: #804000; }
+        .priority-CRITICAL { background: #ff8080; color: #800000; }
+        
+        .tag {
+            background: #e0e0e0;
+            border: 1px solid #808080;
+            padding: 1px 4px;
+            font-size: 10px;
+        }
+        
+        /* Модальное окно Win95 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal-window {
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            border-left: 2px solid #dfdfdf;
+            border-right: 2px solid #0a0a0a;
+            border-bottom: 2px solid #0a0a0a;
+            box-shadow: 2px 2px 0 #000;
+            width: 400px;
+            position: relative;
+            z-index: 1001;
+        }
+        
+        .modal-content {
+            padding: 12px;
+        }
+        
+        .modal-content h2 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #000080;
+        }
+        
+        .field {
+            margin-bottom: 8px;
+        }
+        
+        .field label {
+            display: block;
+            margin-bottom: 2px;
+            font-size: 11px;
+        }
+        
+        .field input,
+        .field textarea,
+        .field select {
+            width: 100%;
+            padding: 3px 5px;
+            border-top: 2px solid #808080;
+            border-left: 2px solid #808080;
+            border-right: 2px solid #dfdfdf;
+            border-bottom: 2px solid #dfdfdf;
+            font-family: 'MS Sans Serif';
+            font-size: 11px;
+            background: #fff;
+        }
+        
+        .field textarea { resize: vertical; min-height: 60px; }
+        
+        .modal-actions {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
+        
+        .btn-ok, .btn-cancel {
+            font-family: 'MS Sans Serif';
+            font-size: 11px;
+            padding: 4px 20px;
+            min-width: 75px;
+            cursor: pointer;
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            border-left: 2px solid #dfdfdf;
+            border-right: 2px solid #0a0a0a;
+            border-bottom: 2px solid #0a0a0a;
+        }
+        
+        .btn-ok:active, .btn-cancel:active {
+            border-top: 2px solid #0a0a0a;
+            border-left: 2px solid #0a0a0a;
+            border-right: 2px solid #dfdfdf;
+            border-bottom: 2px solid #dfdfdf;
+        }
+        
+        .btn-ok:focus {
+            border: 2px solid #000;
+            outline: 1px dotted #000;
+            outline-offset: -4px;
+        }
+        
+        /* Иконка в трее */
+        .tray-icon {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            padding: 2px 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            height: 26px;
+        }
+        
+        .tray-icon .start-button {
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            border-left: 2px solid #dfdfdf;
+            border-right: 2px solid #0a0a0a;
+            border-bottom: 2px solid #0a0a0a;
+            padding: 2px 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: 'MS Sans Serif';
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .tray-icon .start-button:active {
+            border-top: 2px solid #0a0a0a;
+            border-left: 2px solid #0a0a0a;
+            border-right: 2px solid #dfdfdf;
+            border-bottom: 2px solid #dfdfdf;
+        }
+        
+        .tray-icon .taskbar-item {
+            background: #c0c0c0;
+            border-top: 2px solid #dfdfdf;
+            border-left: 2px solid #dfdfdf;
+            border-right: 2px solid #0a0a0a;
+            border-bottom: 2px solid #0a0a0a;
+            padding: 2px 10px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+        
+        .tray-icon .taskbar-item:active {
+            border-top: 2px solid #0a0a0a;
+            border-left: 2px solid #0a0a0a;
+            border-right: 2px solid #dfdfdf;
+            border-bottom: 2px solid #dfdfdf;
+        }
