@@ -17,7 +17,8 @@ settings = get_settings()
 config = context.config
 
 # Настраиваем URL базы данных (синхронный, без +asyncpg)
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("+asyncpg", ""))
+db_url = settings.DATABASE_URL.replace("+asyncpg", "+psycopg2")
+config.set_main_option("sqlalchemy.url", db_url)
 
 # Логирование
 if config.config_file_name is not None:

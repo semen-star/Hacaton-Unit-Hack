@@ -2,13 +2,13 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Board for Windows 95</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kanban Board v1.0</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="desktop">
-        <div class="window maximized">
+        <div class="window">
             <!-- Заголовок окна -->
             <div class="title-bar">
                 <div class="title-bar-text">
@@ -16,12 +16,12 @@
                     <span>Kanban Board v1.0</span>
                 </div>
                 <div class="title-bar-buttons">
-                    <button>─</button>
-                    <button>□</button>
-                    <button>✕</button>
+                    <button title="Свернуть" onclick="minimizeWindow()">─</button>
+                    <button title="Развернуть" id="maxBtn" onclick="maximizeWindow()">□</button>
+                    <button title="Закрыть" onclick="closeWindow()">✕</button>
                 </div>
             </div>
-            
+
             <!-- Меню -->
             <div class="menu-bar">
                 <span><u>Ф</u>айл</span>
@@ -30,68 +30,185 @@
                 <span><u>З</u>адачи</span>
                 <span><u>С</u>правка</span>
             </div>
-            
+
             <!-- Панель инструментов -->
             <div class="toolbar">
-                <button onclick="openModal()">📝 Новая</button>
-                <button>✂️ Вырезать</button>
-                <button>📋 Копировать</button>
-                <button>📌 Вставить</button>
-                <button>🗑️ Удалить</button>
-                <button>🔄 Обновить</button>
+                <button onclick="openModal()" title="Новая задача">📝 <span class="btn-label">Новая</span></button>
+                <div class="toolbar-sep"></div>
+                <button title="Вырезать">✂️ <span class="btn-label">Вырезать</span></button>
+                <button title="Копировать">📋 <span class="btn-label">Копировать</span></button>
+                <button title="Вставить">📌 <span class="btn-label">Вставить</span></button>
+                <div class="toolbar-sep"></div>
+                <button title="Удалить">🗑️ <span class="btn-label">Удалить</span></button>
+                <button onclick="renderBoard()" title="Обновить">🔄 <span class="btn-label">Обновить</span></button>
             </div>
-            
+
+            <!-- Мобильные вкладки колонок -->
+            <div class="column-tabs" id="columnTabs">
+                <button class="tab-btn active" data-col="0" onclick="switchTab(0)">📋 To Do <span class="tab-count" id="tab-todo-count">0</span></button>
+                <button class="tab-btn" data-col="1" onclick="switchTab(1)">🔄 In Progress <span class="tab-count" id="tab-progress-count">0</span></button>
+                <button class="tab-btn" data-col="2" onclick="switchTab(2)">✅ Done <span class="tab-count" id="tab-done-count">0</span></button>
+            </div>
+
             <!-- Рабочая область -->
             <div class="client-area">
                 <div class="board" id="board">
-                    <div class="column">
+                    <div class="column" data-col-index="0">
                         <div class="column-header">
-                            📋 To Do
+                            <span>📋 To Do</span>
                             <span class="count" id="todo-count">0</span>
                         </div>
-                        <div class="column-body" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                        <div class="column-body" id="todo"
+                             ondrop="drop(event)" ondragover="allowDrop(event)"
+                             ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)">
+                        </div>
                     </div>
-                    <div class="column">
+                    <div class="column-divider"></div>
+                    <div class="column" data-col-index="1">
                         <div class="column-header">
-                            🔄 In Progress
+                            <span>🔄 In Progress</span>
                             <span class="count" id="progress-count">0</span>
                         </div>
-                        <div class="column-body" id="in-progress" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                        <div class="column-body" id="in-progress"
+                             ondrop="drop(event)" ondragover="allowDrop(event)"
+                             ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)">
+                        </div>
                     </div>
-                    <div class="column">
+                    <div class="column-divider"></div>
+                    <div class="column" data-col-index="2">
                         <div class="column-header">
-                            ✅ Done
+                            <span>✅ Done</span>
                             <span class="count" id="done-count">0</span>
                         </div>
-                        <div class="column-body" id="done" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                        <div class="column-body" id="done"
+                             ondrop="drop(event)" ondragover="allowDrop(event)"
+                             ontouchstart="touchStart(event)" ontouchmove="touchMove(event)" ontouchend="touchEnd(event)">
+                        </div>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Строка состояния -->
             <div class="status-bar">
-                <span>📋 Задач: <b id="total-tasks">0</b></span>
-                <span>|</span>
-                <span>🟢 Готово</span>
+                <div class="status-section">
+                    <span>📋 Задач: <b id="total-tasks">0</b></span>
+                    <span class="status-sep">|</span>
+                    <span>✅ Выполнено: <b id="done-tasks">0</b></span>
+                </div>
+                <div class="status-section">
+                    <span>🟢 Готово</span>
+                    <span class="status-sep">|</span>
+                    <span id="clock"></span>
+                </div>
             </div>
         </div>
-        
-        <!-- Панель задач (как в Win95) -->
-        <div class="tray-icon">
-            <div class="start-button">
-                <b>Пуск</b>
+
+        <!-- Меню Пуск -->
+        <div class="start-menu" id="startMenu">
+            <div class="start-menu-sidebar">
+                <span>Windows 95</span>
             </div>
-            <div class="taskbar-item">
+            <div class="start-menu-items">
+                <div class="start-item" onclick="startItem('programs')">📁 <span>Программы</span> <span class="start-arrow">▶</span></div>
+                <div class="start-item" onclick="startItem('documents')">📄 <span>Документы</span> <span class="start-arrow">▶</span></div>
+                <div class="start-item" onclick="startItem('settings')">⚙️ <span>Настройки</span> <span class="start-arrow">▶</span></div>
+                <div class="start-item" onclick="startItem('find')">🔍 <span>Найти...</span></div>
+                <div class="start-item" onclick="startItem('help')">❓ <span>Справка</span></div>
+                <div class="start-item" onclick="startItem('run')">🏃 <span>Выполнить...</span></div>
+                <div class="start-sep"></div>
+                <div class="start-item danger" onclick="startItem('shutdown')">🔌 <span>Завершение работы...</span></div>
+            </div>
+        </div>
+
+        <!-- Панель задач -->
+        <div class="taskbar">
+            <div class="start-button" id="startBtn" onclick="toggleStart()">
+                <b>⊞ Пуск</b>
+            </div>
+            <div class="taskbar-item" id="taskbarApp" onclick="restoreWindow()">
                 📋 Kanban Board v1.0
+            </div>
+            <div class="taskbar-clock" id="taskbarClock"></div>
+        </div>
+    </div>
+
+    <!-- Диалог закрытия -->
+    <div class="modal-overlay" id="closeModal">
+        <div class="modal-window" style="max-width:360px">
+            <div class="title-bar">
+                <div class="title-bar-text"><span>⚠️</span><span>Завершение работы Windows</span></div>
+            </div>
+            <div class="modal-content">
+                <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:16px">
+                    <span style="font-size:36px;line-height:1">💻</span>
+                    <p style="font-size:12px;line-height:1.6">Вы действительно хотите закрыть <b>Kanban Board v1.0</b>?<br><br>
+                    Все несохранённые задачи будут потеряны.<br>
+                    (Шутка. Ничего не сохраняется в любом случае 😅)</p>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-ok" onclick="reallyClose()">Да</button>
+                    <button class="btn-cancel" onclick="document.getElementById('closeModal').classList.remove('active')">Нет</button>
+                </div>
             </div>
         </div>
     </div>
-    
-    <!-- Модальное окно Win95 -->
+
+    <!-- Диалог «Выполнить» -->
+    <div class="modal-overlay" id="runModal">
+        <div class="modal-window" style="max-width:360px">
+            <div class="title-bar">
+                <div class="title-bar-text"><span>🏃</span><span>Выполнить</span></div>
+                <div class="title-bar-buttons"><button onclick="document.getElementById('runModal').classList.remove('active')">✕</button></div>
+            </div>
+            <div class="modal-content">
+                <p style="font-size:11px;margin-bottom:8px">Введите имя программы, папки или документа, и Windows откроет его.</p>
+                <div class="field">
+                    <label>Открыть:</label>
+                    <input type="text" id="runInput" placeholder="cmd" onkeydown="if(event.key==='Enter')runCommand()">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-ok" onclick="runCommand()">OK</button>
+                    <button class="btn-cancel" onclick="document.getElementById('runModal').classList.remove('active')">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Диалог «Выключение» -->
+    <div class="modal-overlay" id="shutdownModal">
+        <div class="modal-window" style="max-width:340px">
+            <div class="title-bar">
+                <div class="title-bar-text"><span>🔌</span><span>Завершение работы Windows</span></div>
+            </div>
+            <div class="modal-content">
+                <p style="font-size:12px;margin-bottom:12px;font-weight:bold">Выберите действие:</p>
+                <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer">
+                        <input type="radio" name="shutdown" value="off" checked> Выключить компьютер
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer">
+                        <input type="radio" name="shutdown" value="restart"> Перезагрузить компьютер
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer">
+                        <input type="radio" name="shutdown" value="standby"> Перевести в режим ожидания
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-ok" onclick="doShutdown()">OK</button>
+                    <button class="btn-cancel" onclick="document.getElementById('shutdownModal').classList.remove('active')">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно -->
     <div class="modal-overlay" id="taskModal">
         <div class="modal-window">
             <div class="title-bar">
-                <span>📝 Создание задачи</span>
+                <div class="title-bar-text">
+                    <span>📝</span>
+                    <span>Создание задачи</span>
+                </div>
                 <div class="title-bar-buttons">
                     <button onclick="closeModal()">✕</button>
                 </div>
@@ -99,20 +216,24 @@
             <div class="modal-content">
                 <div class="field">
                     <label>Название задачи:</label>
-                    <input type="text" id="taskTitle" placeholder="">
+                    <input type="text" id="taskTitle" placeholder="Введите название...">
                 </div>
                 <div class="field">
                     <label>Описание:</label>
-                    <textarea id="taskDesc" placeholder=""></textarea>
+                    <textarea id="taskDesc" placeholder="Введите описание..."></textarea>
                 </div>
                 <div class="field">
                     <label>Приоритет:</label>
                     <select id="taskPriority">
-                        <option value="LOW">Низкий</option>
-                        <option value="MEDIUM" selected>Средний</option>
-                        <option value="HIGH">Высокий</option>
-                        <option value="CRITICAL">Критичный</option>
+                        <option value="LOW">🟢 Низкий</option>
+                        <option value="MEDIUM" selected>🟡 Средний</option>
+                        <option value="HIGH">🟠 Высокий</option>
+                        <option value="CRITICAL">🔴 Критичный</option>
                     </select>
+                </div>
+                <div class="field">
+                    <label>Тег (необязательно):</label>
+                    <input type="text" id="taskTag" placeholder="например: система, работа...">
                 </div>
                 <div class="modal-actions">
                     <button class="btn-ok" onclick="createTask()">OK</button>
@@ -121,6 +242,24 @@
             </div>
         </div>
     </div>
+
+    <!-- Диалог подтверждения удаления -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-window" style="max-width:320px">
+            <div class="title-bar">
+                <div class="title-bar-text"><span>⚠️</span><span>Подтверждение</span></div>
+                <div class="title-bar-buttons"><button onclick="closeDeleteModal()">✕</button></div>
+            </div>
+            <div class="modal-content">
+                <p style="margin-bottom:16px;font-size:12px;">Удалить задачу <b id="deleteTaskName"></b>?</p>
+                <div class="modal-actions">
+                    <button class="btn-ok" onclick="confirmDelete()">Да</button>
+                    <button class="btn-cancel" onclick="closeDeleteModal()">Нет</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

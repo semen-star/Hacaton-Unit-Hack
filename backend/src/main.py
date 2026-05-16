@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .core.config import get_settings
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 settings = get_settings()
 
@@ -17,6 +19,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Раздача фронтенда
+frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
+if frontend_path.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+    
+    from fastapi.responses import FileResponse
+    
+    @app.get("/")
+    async def root():
+        return FileResponse(str(frontend_path / "index.html"))
 
 @app.get("/health")
 async def health_check():
