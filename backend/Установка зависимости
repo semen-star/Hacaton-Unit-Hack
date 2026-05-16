@@ -1,0 +1,12 @@
+# 1. Устанавливаем зависимости
+cd backend
+pip install -r requirements.txt
+
+# 2. Создаём первую миграцию
+alembic revision --autogenerate -m "initial_schema"
+
+# 3. Применяем миграцию
+alembic upgrade head
+
+# 4. Запускаем сервер
+uvicorn src.main:app --reload --port 8000
