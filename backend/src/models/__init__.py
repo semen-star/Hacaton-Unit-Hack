@@ -6,7 +6,7 @@ from .task import Task
 from .tag import Tag
 from .task_tag import TaskTag
 from .automation_rule import AutomationRule
-from .notifications import Notification
+from .notification import Notification
 
 __all__ = [
     "Base",
