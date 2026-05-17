@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from .core.config import get_settings
 from .core.database import engine, Base
-from .api.v1 import tasks, init, auth, boards, columns, notification, automation, tags, ws
+from .api.v1 import tasks, init, auth, boards, columns, notification, automation, tags
 
 settings = get_settings()
 
@@ -30,16 +30,16 @@ app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
 app.include_router(boards.router, prefix="/api/v1", tags=["boards"])
 app.include_router(columns.router, prefix="/api/v1/columns", tags=["columns"])
 app.include_router(notification.router, prefix="/api/v1", tags=["notifications"])
+app.include_router(automation.router, prefix="/api/v1", tags=["automation"])
+app.include_router(tags.router, prefix="/api/v1", tags=["tags"])
 app.include_router(init.router, prefix="/api/v1", tags=["init"])
 
 # Frontend
 frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
 
 if frontend_path.exists():
-    # Монтируем статические файлы
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
     
-    # Страница входа (теперь открывается первой)
     @app.get("/")
     async def root():
         login_file = frontend_path / "login register" / "index.html"
@@ -47,7 +47,6 @@ if frontend_path.exists():
             return FileResponse(str(login_file))
         return Response(status_code=404)
     
-    # Основная доска (защищена через фронт)
     @app.get("/main")
     async def main_board():
         main_file = frontend_path / "main" / "index.html"
@@ -55,7 +54,6 @@ if frontend_path.exists():
             return FileResponse(str(main_file))
         return Response(status_code=404)
     
-    # Админ панель (защищена через фронт)
     @app.get("/admin")
     async def admin_panel():
         admin_file = frontend_path / "admin" / "admin.html"
@@ -63,7 +61,6 @@ if frontend_path.exists():
             return FileResponse(str(admin_file))
         return Response(status_code=404)
     
-    # Страница логина/регистрации (прямой доступ)
     @app.get("/login%20register")
     @app.get("/login")
     @app.get("/register")
@@ -73,7 +70,6 @@ if frontend_path.exists():
             return FileResponse(str(login_file))
         return Response(status_code=404)
     
-    # Обслуживание favicon
     @app.get("/favicon.ico")
     async def favicon():
         favicon_file = frontend_path / "favicon.ico"
@@ -81,15 +77,19 @@ if frontend_path.exists():
             return FileResponse(str(favicon_file))
         return Response(status_code=204)
     
-    # Fallback для SPA маршрутов
+    # Fallback для SPA маршрутов - НЕ ТРОГАЕМ API
     @app.get("/{path:path}")
     async def catch_all(path: str):
+        # Не трогаем API маршруты и статику
+        if path.startswith("api/") or path.startswith("static/"):
+            return Response(status_code=404)
+        
         # Проверяем, есть ли запрошенный файл
         file_path = frontend_path / path
         if file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
         
-        # Если нет, но это похоже на маршрут фронта - отдаём соответствующую страницу
+        # SPA fallback - отдаём соответствующую страницу
         if path.startswith("main") or path == "main":
             main_file = frontend_path / "main" / "index.html"
             if main_file.exists():
@@ -118,7 +118,6 @@ async def health_check():
 @app.on_event("startup")
 async def startup_event():
     async with engine.begin() as conn:
-        # Создаём все таблицы (включая users, notifications)
         await conn.run_sync(Base.metadata.create_all)
     print(f">>> {settings.APP_NAME} v2.0.0 started!")
     print(f">>> API Docs: http://localhost:8000/docs")
