@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -12,8 +11,7 @@
     <div class="login-window">
       <div class="title-bar">
         <div class="title-bar-left">
-          <span>🔐</span>
-          <span>KanbanOS 95 — Вход в систему</span>
+          <span>🔐 KanbanOS 95 — Вход в систему</span>
         </div>
       </div>
 
@@ -28,14 +26,10 @@
             <label>🔒 Пароль</label>
             <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
           </div>
-          <button class="btn-primary" onclick="login()">Войти</button>
-          <div class="demo-hint">
-            <small>Тестовые аккаунты:<br>
-            <strong>admin / admin123</strong> (администратор)<br>
-            <strong>manager_alex / admin123</strong> (администратор)</small>
-          </div>
-          <div class="switch-link">
-            <a href="#" onclick="showRegister()">Нет аккаунта? Зарегистрироваться</a>
+          <button class="btn-primary" onclick="login()">Войти в систему</button>
+          
+          <div class="register-btn-container">
+            <button class="btn-register" onclick="showRegister()">📝 Зарегистрироваться</button>
           </div>
         </div>
 
@@ -54,8 +48,9 @@
             <input type="password" id="regConfirmPassword" placeholder="••••••••" autocomplete="new-password">
           </div>
           <button class="btn-primary" onclick="register()">Зарегистрироваться</button>
-          <div class="switch-link">
-            <a href="#" onclick="showLogin()">Уже есть аккаунт? Войти</a>
+          
+          <div class="login-btn-container">
+            <button class="btn-back" onclick="showLogin()">← Назад к входу</button>
           </div>
         </div>
       </div>
