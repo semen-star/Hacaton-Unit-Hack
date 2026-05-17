@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from .core.config import get_settings
@@ -30,10 +31,12 @@ app.include_router(init.router)
 # Frontend
 frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
 if frontend_path.exists():
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+    
     @app.get("/")
     async def root():
         return FileResponse(str(frontend_path / "index.html"))
-
+    
     @app.get("/favicon.ico")
     async def favicon():
         favicon_file = frontend_path / "favicon.ico"
