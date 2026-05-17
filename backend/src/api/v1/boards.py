@@ -25,7 +25,7 @@ async def create_board(
     return board
 
 
-@router.get("{board_id}")
+@router.get("/{board_id}")
 async def get_board(
     board_id: int,
     current_user: User = Depends(get_current_user),
