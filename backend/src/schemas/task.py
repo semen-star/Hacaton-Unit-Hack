@@ -1,68 +1,65 @@
-# backend/src/models/task.py
-import enum
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
-
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from src.core.database import Base
-
-if TYPE_CHECKING:
-    from src.models.column import Column
-    from src.models.task_tag import TaskTag
-    from src.models.user import User
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
+from enum import Enum
 
 
-class TaskPriority(str, enum.Enum):
+class TaskPriority(str, Enum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
 
-class Task(Base):
-    __tablename__ = "tasks"
+class TaskCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    priority: TaskPriority = TaskPriority.MEDIUM
+    column_id: int
+    tags: list[str] = []
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    column_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("columns.id", ondelete="CASCADE"), nullable=False
-    )
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
-    priority: Mapped[TaskPriority] = mapped_column(
-        Enum(TaskPriority, name="task_priority", create_type=False),
-        default=TaskPriority.MEDIUM,
-        server_default="MEDIUM",
-        nullable=False,
-    )
-    assignee_id: Mapped[Optional[int]] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL")
-    )
-    deadline: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        server_default="CURRENT_TIMESTAMP",
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        server_default="CURRENT_TIMESTAMP",
-        onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
-    )
-    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
-    # Связи
-    column: Mapped["Column"] = relationship("Column", back_populates="tasks")
-    assignee: Mapped[Optional["User"]] = relationship(
-        "User", back_populates="assigned_tasks", foreign_keys=[assignee_id]
-    )
-    task_tags: Mapped[List["TaskTag"]] = relationship(
-        "TaskTag", back_populates="task", cascade="all, delete-orphan"
-    )
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[TaskPriority] = None
+    column_id: Optional[int] = None
 
-    def __repr__(self) -> str:
-        return f"<Task(id={self.id}, title='{self.title}', priority={self.priority})>"
+
+class TaskMove(BaseModel):
+    task_id: int
+    new_column_id: int
+
+
+class TaskResponse(BaseModel):
+    id: int
+    column_id: int
+    title: str
+    description: Optional[str] = None
+    priority: TaskPriority
+    assignee_id: Optional[int] = None
+    deadline: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    version: int
+    tags: list[str] = []
+
+    model_config = {"from_attributes": True}
+
+
+class ColumnResponse(BaseModel):
+    id: int
+    title: str
+    position: int
+    tasks: list[TaskResponse] = []
+
+    model_config = {"from_attributes": True}
+
+
+class BoardResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    columns: list[ColumnResponse] = []
+
+    model_config = {"from_attributes": True}
