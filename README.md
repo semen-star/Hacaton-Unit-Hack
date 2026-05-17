@@ -1,4 +1,4 @@
-```markdown
+
 # Kanban Board — Event-Driven Task Management System
 
 Канбан-доска в стиле Windows 95 с синхронизацией, автоматизацией и event-driven архитектурой.
