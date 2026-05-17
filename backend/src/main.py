@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from .core.config import get_settings
 from .api.v1 import tasks, init
+from .core.database import engine, Base
 
 settings = get_settings()
 
@@ -34,6 +34,13 @@ if frontend_path.exists():
     async def root():
         return FileResponse(str(frontend_path / "index.html"))
 
+    @app.get("/favicon.ico")
+    async def favicon():
+        favicon_file = frontend_path / "favicon.ico"
+        if favicon_file.exists():
+            return FileResponse(str(favicon_file))
+        return Response(status_code=204)
+
 
 @app.get("/health")
 async def health_check():
@@ -43,8 +50,6 @@ async def health_check():
         "version": "1.0.0"
     }
 
-
-from .core.database import engine, Base
 
 @app.on_event("startup")
 async def startup_event():
