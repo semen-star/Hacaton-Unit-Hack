@@ -1,3 +1,4 @@
+
 * {
   margin: 0;
   padding: 0;
@@ -12,7 +13,6 @@
   --titlebar-from: #000080;
   --titlebar-to: #1084d0;
   --desktop-bg: #008080;
-  --taskbar-h: 28px;
 }
 
 body {
@@ -34,7 +34,7 @@ body {
 }
 
 .login-window {
-  width: 380px;
+  width: 360px;
   background: var(--win-bg);
   border-top: 2px solid var(--win-light);
   border-left: 2px solid var(--win-light);
@@ -68,30 +68,6 @@ body {
   background: #fff;
   border: 2px inset var(--win-shadow);
   margin: 8px;
-}
-
-.auth-tabs {
-  display: flex;
-  gap: 2px;
-  border-bottom: 1px solid var(--win-shadow);
-  margin-bottom: 16px;
-}
-
-.tab-btn {
-  background: var(--win-bg);
-  border: 1px solid var(--win-shadow);
-  border-bottom: none;
-  padding: 6px 20px;
-  font-family: 'MS Sans Serif';
-  font-size: 12px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.tab-btn.active {
-  background: #fff;
-  border-bottom: 1px solid #fff;
-  margin-bottom: -1px;
 }
 
 .auth-pane {
@@ -162,6 +138,22 @@ body {
   padding: 6px;
   background: #e0e0e0;
   border: 1px inset var(--win-shadow);
+}
+
+.switch-link {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 10px;
+}
+
+.switch-link a {
+  color: #000080;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.switch-link a:hover {
+  text-decoration: underline;
 }
 
 .notification {

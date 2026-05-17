@@ -1,24 +1,15 @@
 const API_BASE = '/api/v1';
-let currentTab = 'login';
 
-function switchTab(tab) {
-  currentTab = tab;
-  
-  const loginPane = document.getElementById('loginForm');
-  const registerPane = document.getElementById('registerForm');
-  const tabs = document.querySelectorAll('.tab-btn');
-  
-  if (tab === 'login') {
-    loginPane.classList.add('active');
-    registerPane.classList.remove('active');
-    tabs[0].classList.add('active');
-    tabs[1].classList.remove('active');
-  } else {
-    loginPane.classList.remove('active');
-    registerPane.classList.add('active');
-    tabs[0].classList.remove('active');
-    tabs[1].classList.add('active');
-  }
+function showLogin() {
+  document.getElementById('loginForm').classList.add('active');
+  document.getElementById('registerForm').classList.remove('active');
+  setStatus('Введите логин и пароль');
+}
+
+function showRegister() {
+  document.getElementById('loginForm').classList.remove('active');
+  document.getElementById('registerForm').classList.add('active');
+  setStatus('Создание нового аккаунта');
 }
 
 function showNotification(message, isError = false) {
@@ -69,37 +60,26 @@ async function login() {
     
     const data = await response.json();
     
-    // ========== ВСТАВЬ ЭТОТ БЛОК ЗДЕСЬ ==========
-    console.log('Raw token from server:', data.access_token);
-    console.log('Token type:', typeof data.access_token);
-    // ============================================
-    
-    // Сохраняем токен и данные пользователя
-    localStorage.setItem('access_token', data.access_token);
-    
-    // ========== И ЭТОТ БЛОК ТОЖЕ ЗДЕСЬ ==========
-    const savedToken = localStorage.getItem('access_token');
-    console.log('Saved token:', savedToken);
-    console.log('Saved token length:', savedToken?.length);
-    // =============================================
-    
-    localStorage.setItem('user', JSON.stringify(data.user));
-    
-    console.log('Login successful!', data.user);
-    
-    showNotification(`Добро пожаловать, ${data.user.username}!`);
-    setStatus('Вход выполнен! Перенаправление...');
-    
-    // Перенаправление в зависимости от роли
-    setTimeout(() => {
-      if (data.user.role === 'admin') {
-        console.log('Redirecting to /admin');
-        window.location.href = '/admin';
-      } else {
-        console.log('Redirecting to /main');
-        window.location.href = '/main';
-      }
-    }, 500);
+    // Сохраняем токен
+    if (data.access_token) {
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      console.log('Token saved:', data.access_token.substring(0, 50) + '...');
+      
+      showNotification(`Добро пожаловать, ${data.user.username}!`);
+      setStatus('Вход выполнен! Перенаправление...');
+      
+      // Перенаправление
+      setTimeout(() => {
+        if (data.user.role === 'admin') {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/main';
+        }
+      }, 500);
+    } else {
+      throw new Error('Токен не получен от сервера');
+    }
     
   } catch (error) {
     console.error('Login error:', error);
@@ -110,11 +90,10 @@ async function login() {
 
 async function register() {
   const username = document.getElementById('regUsername').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value;
   const confirmPassword = document.getElementById('regConfirmPassword').value;
   
-  if (!username || !email || !password) {
+  if (!username || !password) {
     setStatus('Заполните все поля', true);
     return;
   }
@@ -135,7 +114,7 @@ async function register() {
     const response = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password })
+      body: JSON.stringify({ username, email: `${username}@temp.com`, password })
     });
     
     if (!response.ok) {
@@ -145,35 +124,23 @@ async function register() {
     
     const data = await response.json();
     
- // ========== ВСТАВЬ ЭТОТ БЛОК ЗДЕСЬ ==========
-  console.log('Raw token from server:', data.access_token);
-  console.log('Token type:', typeof data.access_token);
-  // ============================================
-  
-  localStorage.setItem('access_token', data.access_token);
-  
-  // ========== И ЭТОТ БЛОК ТОЖЕ ЗДЕСЬ ==========
-  const savedToken = localStorage.getItem('access_token');
-  console.log('Saved token:', savedToken);
-  console.log('Saved token length:', savedToken?.length);
-  // =============================================
-  
-  localStorage.setItem('user', JSON.stringify(data.user));
-    
-    // Сохраняем токен и автоматически логиним
-    localStorage.setItem('access_token', data.access_token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    
-    showNotification('Регистрация успешна!');
-    setStatus('Аккаунт создан! Перенаправление...');
-    
-    setTimeout(() => {
-      if (data.user.role === 'admin') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/main';
-      }
-    }, 500);
+    if (data.access_token) {
+      localStorage.setItem('access_token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      showNotification('Регистрация успешна!');
+      setStatus('Аккаунт создан! Перенаправление...');
+      
+      setTimeout(() => {
+        if (data.user.role === 'admin') {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/main';
+        }
+      }, 500);
+    } else {
+      throw new Error('Токен не получен от сервера');
+    }
     
   } catch (error) {
     console.error('Register error:', error);
@@ -182,16 +149,10 @@ async function register() {
   }
 }
 
-function logout() {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('user');
-  window.location.href = '/';
-}
-
-// Проверяем, есть ли уже токен
+// Проверяем существующий токен при загрузке
 function checkExistingToken() {
   const token = localStorage.getItem('access_token');
-  console.log('Checking existing token:', token);
+  console.log('Checking existing token:', token ? token.substring(0, 50) + '...' : 'null');
   
   if (token) {
     fetch(`${API_BASE}/auth/me`, {
@@ -199,7 +160,7 @@ function checkExistingToken() {
     }).then(response => {
       if (response.ok) {
         response.json().then(user => {
-          console.log('User already logged in:', user);
+          console.log('User already logged in:', user.username);
           if (user.role === 'admin') {
             window.location.href = '/admin';
           } else {
@@ -218,10 +179,11 @@ function checkExistingToken() {
   }
 }
 
-// Навешиваем обработчик Enter
+// Enter key handler
 document.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {
-    if (currentTab === 'login') {
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm.classList.contains('active')) {
       login();
     } else {
       register();
@@ -229,11 +191,5 @@ document.addEventListener('keypress', (e) => {
   }
 });
 
-// Добавляем обработчик для кнопки выхода (если есть на странице)
-document.addEventListener('click', (e) => {
-  if (e.target.id === 'logoutBtn') {
-    logout();
-  }
-});
-
+// Start
 checkExistingToken();
