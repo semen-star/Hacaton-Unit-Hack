@@ -1,31 +1,29 @@
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
 
 from src.core.database import get_db
 from src.api.v1.auth import get_current_user, get_current_admin
 from src.models.user import User
 from src.models.board import Board
 from src.models.column import Column
-from pydantic import BaseModel, Field
-from typing import Optional
-from datetime import datetime
 
-
-# Pydantic схемы для колонок
+# Pydantic схемы
 class ColumnCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=100)
     board_id: int
-    order: Optional[int] = 0
+    position: Optional[int] = 0  # ← исправлено: position вместо order
 
 
 class ColumnResponse(BaseModel):
     id: int
     title: str
     board_id: int
-    order: int
-    created_at: datetime
+    position: int  # ← исправлено: position вместо order
+    created_at: Optional[datetime] = None  # может не быть в модели
 
     class Config:
         from_attributes = True
@@ -37,11 +35,11 @@ router = APIRouter(prefix="/columns", tags=["columns"])
 @router.post("/", response_model=ColumnResponse, status_code=status.HTTP_201_CREATED)
 async def create_column(
     column_data: ColumnCreate,
-    current_user: User = Depends(get_current_admin),  # Только админ
+    current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Создание новой колонки"""
-    # Проверяем, существует ли доска
+    """Создание новой колонки (только админ)"""
+    # Проверяем существование доски
     result = await db.execute(select(Board).where(Board.id == column_data.board_id))
     board = result.scalar_one_or_none()
     
@@ -51,11 +49,11 @@ async def create_column(
             detail=f"Board with id {column_data.board_id} not found"
         )
     
-    # Создаём колонку
+    # Создаём колонку с правильным именем поля
     new_column = Column(
         title=column_data.title,
         board_id=column_data.board_id,
-        order=column_data.order or 0
+        position=column_data.position or 0  # ← position вместо order
     )
     
     db.add(new_column)
@@ -66,18 +64,48 @@ async def create_column(
         id=new_column.id,
         title=new_column.title,
         board_id=new_column.board_id,
-        order=new_column.order,
-        created_at=new_column.created_at
+        position=new_column.position,
+        created_at=getattr(new_column, 'created_at', None)
     )
 
 
-@router.get("/{column_id}")
+@router.get("/", response_model=List[ColumnResponse])
+async def get_all_columns(
+    board_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Получение всех колонок (опционально по board_id)"""
+    if board_id:
+        result = await db.execute(
+            select(Column)
+            .where(Column.board_id == board_id)
+            .order_by(Column.position)  # ← position вместо order
+        )
+    else:
+        result = await db.execute(select(Column).order_by(Column.position))
+    
+    columns = result.scalars().all()
+    
+    return [
+        ColumnResponse(
+            id=col.id,
+            title=col.title,
+            board_id=col.board_id,
+            position=col.position,
+            created_at=getattr(col, 'created_at', None)
+        )
+        for col in columns
+    ]
+
+
+@router.get("/{column_id}", response_model=ColumnResponse)
 async def get_column(
     column_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Получение информации о колонке"""
+    """Получение информации о колонке по ID"""
     result = await db.execute(select(Column).where(Column.id == column_id))
     column = result.scalar_one_or_none()
     
@@ -87,23 +115,24 @@ async def get_column(
             detail=f"Column with id {column_id} not found"
         )
     
-    return {
-        "id": column.id,
-        "title": column.title,
-        "board_id": column.board_id,
-        "order": column.order,
-        "created_at": column.created_at
-    }
+    return ColumnResponse(
+        id=column.id,
+        title=column.title,
+        board_id=column.board_id,
+        position=column.position,
+        created_at=getattr(column, 'created_at', None)
+    )
 
 
-@router.put("/{column_id}")
+@router.put("/{column_id}", response_model=ColumnResponse)
 async def update_column(
     column_id: int,
     title: str,
+    position: Optional[int] = None,
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Обновление колонки"""
+    """Обновление колонки (только админ)"""
     result = await db.execute(select(Column).where(Column.id == column_id))
     column = result.scalar_one_or_none()
     
@@ -114,9 +143,19 @@ async def update_column(
         )
     
     column.title = title
-    await db.commit()
+    if position is not None:
+        column.position = position
     
-    return {"message": "Column updated"}
+    await db.commit()
+    await db.refresh(column)
+    
+    return ColumnResponse(
+        id=column.id,
+        title=column.title,
+        board_id=column.board_id,
+        position=column.position,
+        created_at=getattr(column, 'created_at', None)
+    )
 
 
 @router.delete("/{column_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -125,7 +164,7 @@ async def delete_column(
     current_user: User = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
-    """Удаление колонки"""
+    """Удаление колонки (только админ)"""
     result = await db.execute(select(Column).where(Column.id == column_id))
     column = result.scalar_one_or_none()
     
@@ -141,27 +180,27 @@ async def delete_column(
     return None
 
 
-@router.get("/board/{board_id}")
-async def get_board_columns(
+@router.get("/board/{board_id}", response_model=List[ColumnResponse])
+async def get_columns_by_board(
     board_id: int,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Получение всех колонок доски"""
+    """Получение всех колонок конкретной доски"""
     result = await db.execute(
         select(Column)
         .where(Column.board_id == board_id)
-        .order_by(Column.order)
+        .order_by(Column.position)
     )
     columns = result.scalars().all()
     
     return [
-        {
-            "id": col.id,
-            "title": col.title,
-            "board_id": col.board_id,
-            "order": col.order,
-            "created_at": col.created_at
-        }
+        ColumnResponse(
+            id=col.id,
+            title=col.title,
+            board_id=col.board_id,
+            position=col.position,
+            created_at=getattr(col, 'created_at', None)
+        )
         for col in columns
     ]
