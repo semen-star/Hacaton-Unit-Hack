@@ -25,13 +25,14 @@ app.add_middleware(
 )
 
 # API роутеры
-app.include_router(boards.router, prefix="/api/v1/boards", tags=["boards"])
-app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
-app.include_router(boards.router, prefix="/api/v1", tags=["boards"])
+# API роутеры
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(tasks.router, prefix="", tags=["tasks"])        # у него prefix="/api/v1" внутри
+app.include_router(boards.router, prefix="/api/v1/boards", tags=["boards"])  # только один раз
 app.include_router(columns.router, prefix="/api/v1/columns", tags=["columns"])
-app.include_router(notification.router, prefix="/api/v1", tags=["notifications"])
-app.include_router(automation.router, prefix="/api/v1", tags=["automation"])
-app.include_router(tags.router, prefix="/api/v1", tags=["tags"])
+app.include_router(notification.router, prefix="/api/v1/notifications", tags=["notifications"])
+app.include_router(automation.router, prefix="/api/v1/automation", tags=["automation"])
+app.include_router(tags.router, prefix="/api/v1/tags", tags=["tags"])
 app.include_router(init.router, prefix="/api/v1", tags=["init"])
 
 # Frontend
