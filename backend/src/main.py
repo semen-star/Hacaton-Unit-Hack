@@ -28,7 +28,7 @@ app.add_middleware(
 app.include_router(tasks.router)
 app.include_router(init.router)
 
-# Frontend — раздаём всё из папки frontend
+# Frontend
 frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
@@ -43,25 +43,13 @@ if frontend_path.exists():
         if admin_file.exists():
             return FileResponse(str(admin_file))
         return Response(status_code=404)
+
     @app.get("/admin/admin.html")
     async def admin_direct():
         admin_file = frontend_path / "admin" / "admin.html"
         if admin_file.exists():
             return FileResponse(str(admin_file))
         return Response(status_code=404)
-    @app.get("/admin/style.css")
-    async def admin_css():
-        css_file = frontend_path / "admin" / "style.css"
-        if css_file.exists():
-            return FileResponse(str(css_file))
-        return Response(status_code=404)
-
-    @app.get("/admin/script.js")
-    async def admin_js():
-        js_file = frontend_path / "admin" / "script.js"
-        if js_file.exists():
-            return FileResponse(str(js_file))
-        return Response(status_code=404)"""
 
     @app.get("/favicon.ico")
     async def favicon():
