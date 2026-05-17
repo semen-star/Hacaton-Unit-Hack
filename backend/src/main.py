@@ -25,7 +25,7 @@ app.add_middleware(
 )
 
 # API роутеры
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(boards.router, prefix="/api/v1/boards", tags=["boards"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
 app.include_router(boards.router, prefix="/api/v1", tags=["boards"])
 app.include_router(columns.router, prefix="/api/v1/columns", tags=["columns"])
