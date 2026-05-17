@@ -28,7 +28,7 @@ app.add_middleware(
 app.include_router(tasks.router)
 app.include_router(init.router)
 
-# Frontend
+# Frontend — раздаём всё из папки frontend
 frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
@@ -39,13 +39,6 @@ if frontend_path.exists():
 
     @app.get("/admin")
     async def admin():
-        admin_file = frontend_path / "admin" / "admin.html"
-        if admin_file.exists():
-            return FileResponse(str(admin_file))
-        return Response(status_code=404)
-
-    @app.get("/admin/admin.html")
-    async def admin_html():
         admin_file = frontend_path / "admin" / "admin.html"
         if admin_file.exists():
             return FileResponse(str(admin_file))
