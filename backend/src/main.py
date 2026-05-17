@@ -43,6 +43,12 @@ if frontend_path.exists():
         if admin_file.exists():
             return FileResponse(str(admin_file))
         return Response(status_code=404)
+    @app.get("/admin/admin.html")
+    async def admin_direct():
+        admin_file = frontend_path / "admin" / "admin.html"
+        if admin_file.exists():
+            return FileResponse(str(admin_file))
+        return Response(status_code=404)
 
     @app.get("/favicon.ico")
     async def favicon():
