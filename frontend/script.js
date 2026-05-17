@@ -1,122 +1,101 @@
 // ═══════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════
-const API = '/api/v1';
-const USE_MOCK = true; // ← переключить на false когда добавится бэк
+const API_BASE = '/api/v1';
+const USE_MOCK = false; // ← используем реальный бэкенд
 
 let state = {
-  columns: [
-    {
-      id: 1, title: 'To Do', emoji: '📋',
-      tasks: [
-        { id: 1, title: 'Настроить CI/CD пайплайн', description: 'Настроить GitHub Actions для автоматического деплоя', priority: 'HIGH', tags: ['devops', 'инфра'], deadline: '2025-08-10', created: '2025-07-20' },
-        { id: 2, title: 'Написать документацию API', description: 'Swagger/OpenAPI спецификация для всех эндпоинтов', priority: 'MEDIUM', tags: ['docs'], deadline: '2025-09-01', created: '2025-07-21' },
-        { id: 3, title: 'Исправить баг в авторизации', description: 'Пользователи иногда не могут войти после сброса пароля', priority: 'CRITICAL', tags: ['bug', 'auth'], deadline: '2025-07-25', created: '2025-07-22' },
-      ]
-    },
-    {
-      id: 2, title: 'In Progress', emoji: '🔄',
-      tasks: [
-        { id: 4, title: 'Разработать Kanban UI', description: 'Windows 95 стиль, drag & drop, real-time обновления', priority: 'HIGH', tags: ['frontend', 'ui'], deadline: '2025-08-05', created: '2025-07-18' },
-        { id: 5, title: 'Настроить WebSocket', description: 'Real-time синхронизация между пользователями через WS', priority: 'HIGH', tags: ['backend', 'ws'], deadline: null, created: '2025-07-19' },
-      ]
-    },
-    {
-      id: 3, title: 'Done', emoji: '✅',
-      tasks: [
-        { id: 6, title: 'Инициализировать проект', description: 'Создать репозиторий, настроить структуру папок', priority: 'LOW', tags: ['setup'], deadline: null, created: '2025-07-15' },
-        { id: 7, title: 'Выбрать технологии', description: 'Go + RabbitMQ + PostgreSQL + WebSockets', priority: 'MEDIUM', tags: ['архитектура'], deadline: null, created: '2025-07-16' },
-      ]
-    }
-  ],
-  nextId: 8,
+  columns: [],
+  nextId: 1,
   draggedTaskId: null,
   draggedFromCol: null,
   compactMode: false,
   filterOverdue: false,
+  boardId: 1  // у нас одна доска с id=1
 };
 
 // ═══════════════════════════════════════════════════
-//  API / MOCK
+//  API CALLS
 // ═══════════════════════════════════════════════════
-async function apiCall(method, path, body) {
-  if (USE_MOCK) {
-    return mockApi(method, path, body);
-  }
-  const r = await fetch(API + path, {
+async function apiCall(method, path, body = null) {
+  const url = `${API_BASE}${path}`;
+  const options = {
     method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined
-  });
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+  
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error ${response.status}: ${errorText}`);
+    }
+    if (response.status === 204) {
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('API call failed:', error);
+    showNotif('⚠️', 'Ошибка', error.message);
+    throw error;
+  }
 }
 
-function mockApi(method, path, body) {
-  if (method === 'GET' && path === '/board') {
-    return Promise.resolve({ columns: JSON.parse(JSON.stringify(state.columns)) });
-  }
-  if (method === 'POST' && path === '/tasks') {
-    const task = { ...body, id: state.nextId++, created: new Date().toISOString().slice(0,10) };
-    const col = state.columns.find(c => c.id === body.column_id);
-    if (col) col.tasks.push(task);
-    return Promise.resolve(task);
-  }
-  if (method === 'PUT' && path.startsWith('/tasks/')) {
-    const id = parseInt(path.split('/')[2]);
-    for (const col of state.columns) {
-      const t = col.tasks.find(t => t.id === id);
-      if (t) Object.assign(t, body);
+// ═══════════════════════════════════════════════════
+//  BOARD LOAD
+// ═══════════════════════════════════════════════════
+async function loadBoard() {
+  setToolbarStatus('Загрузка...');
+  try {
+    const board = await apiCall('GET', `/boards/${state.boardId}`);
+    // Преобразуем данные из API в формат фронта
+    state.columns = board.columns.map(col => ({
+      id: col.id,
+      title: col.title,
+      emoji: getEmojiForColumn(col.title),
+      tasks: col.tasks.map(task => ({
+        id: task.id,
+        title: task.title,
+        description: task.description || '',
+        priority: task.priority,
+        tags: task.tags || [],
+        deadline: task.deadline || null,
+        created: task.created_at ? task.created_at.split('T')[0] : new Date().toISOString().slice(0, 10)
+      }))
+    }));
+    
+    renderBoard();
+    setLastEvent('Доска обновлена');
+    setToolbarStatus('Готово');
+  } catch (error) {
+    console.error('Load board error:', error);
+    setToolbarStatus('Ошибка!');
+    // Если API недоступен, показываем сообщение
+    if (!USE_MOCK) {
+      showNotif('⚠️', 'Ошибка подключения', 'Не удалось загрузить доску. Убедитесь, что сервер запущен.');
     }
-    return Promise.resolve({});
   }
-  if (method === 'DELETE' && path.startsWith('/tasks/')) {
-    const id = parseInt(path.split('/')[2]);
-    for (const col of state.columns) {
-      col.tasks = col.tasks.filter(t => t.id !== id);
-    }
-    return Promise.resolve({});
-  }
-  if (method === 'POST' && path === '/tasks/move') {
-    const { task_id, new_column_id } = body;
-    let task;
-    for (const col of state.columns) {
-      const idx = col.tasks.findIndex(t => t.id === task_id);
-      if (idx !== -1) { task = col.tasks.splice(idx, 1)[0]; break; }
-    }
-    if (task) {
-      const newCol = state.columns.find(c => c.id === new_column_id);
-      if (newCol) newCol.tasks.push(task);
-    }
-    return Promise.resolve({});
-  }
-  if (method === 'POST' && path === '/columns') {
-    const col = { ...body, id: Date.now(), tasks: [] };
-    state.columns.push(col);
-    return Promise.resolve(col);
-  }
-  return Promise.resolve({});
+}
+
+function getEmojiForColumn(title) {
+  const emojiMap = {
+    'To Do': '📋',
+    'In Progress': '🔄',
+    'Done': '✅',
+    'Review': '👀',
+    'Backlog': '📦'
+  };
+  return emojiMap[title] || '📌';
 }
 
 // ═══════════════════════════════════════════════════
 //  BOARD RENDER
 // ═══════════════════════════════════════════════════
-async function loadBoard() {
-  setToolbarStatus('Загрузка…');
-  try {
-    if (!USE_MOCK) {
-      const board = await apiCall('GET', '/board');
-      state.columns = board.columns;
-    }
-    renderBoard();
-    setLastEvent('Доска обновлена');
-    setToolbarStatus('Готово');
-  } catch(e) {
-    showNotif('⚠️', 'Ошибка загрузки', e.message);
-    setToolbarStatus('Ошибка!');
-  }
-}
-
 function renderBoard() {
   const board = document.getElementById('board');
   const addBtn = board.querySelector('.add-column-btn');
@@ -125,7 +104,8 @@ function renderBoard() {
   board.querySelectorAll('.column').forEach(c => c.remove());
   
   let filtered = state.filterOverdue;
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); 
+  today.setHours(0, 0, 0, 0);
   
   for (const col of state.columns) {
     let tasks = col.tasks;
@@ -138,7 +118,7 @@ function renderBoard() {
     colEl.dataset.colId = col.id;
     colEl.innerHTML = `
       <div class="column-header">
-        <span><span class="col-emoji">${col.emoji || '📌'}</span>${col.title}</span>
+        <span><span class="col-emoji">${col.emoji || '📌'}</span>${escapeHtml(col.title)}</span>
         <span class="count" id="count-${col.id}">${tasks.length}</span>
       </div>
       <div class="column-body" id="col-${col.id}"
@@ -151,28 +131,35 @@ function renderBoard() {
   }
   
   // Update total
-  const total = state.columns.reduce((s,c) => s + c.tasks.length, 0);
-  document.getElementById('total-tasks').textContent = total;
+  const total = state.columns.reduce((s, c) => s + c.tasks.length, 0);
+  const totalEl = document.getElementById('total-tasks');
+  if (totalEl) totalEl.textContent = total;
   
   // Update column selector in modal
   const sel = document.getElementById('taskColumn');
   if (sel) {
     sel.innerHTML = state.columns.map(c =>
-      `<option value="${c.id}">${c.emoji || '📌'} ${c.title}</option>`
+      `<option value="${c.id}">${c.emoji || '📌'} ${escapeHtml(c.title)}</option>`
     ).join('');
   }
 }
 
 function renderCard(t) {
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); 
+  today.setHours(0, 0, 0, 0);
   let deadlineHtml = '';
   if (t.deadline) {
     const dl = new Date(t.deadline);
     const diff = Math.round((dl - today) / 86400000);
     let cls = '';
     let label = dl.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit' });
-    if (diff < 0) { cls = 'overdue'; label = '⚠️ ' + label; }
-    else if (diff <= 3) { cls = 'soon'; label = '⏰ ' + label; }
+    if (diff < 0) { 
+      cls = 'overdue'; 
+      label = '⚠️ ' + label; 
+    } else if (diff <= 3) { 
+      cls = 'soon'; 
+      label = '⏰ ' + label; 
+    }
     deadlineHtml = `<span class="card-deadline ${cls}" title="Дедлайн: ${t.deadline}">${label}</span>`;
   }
   
@@ -197,11 +184,18 @@ function renderCard(t) {
 }
 
 function priorityLabel(p) {
-  return { LOW:'🟢 Низкий', MEDIUM:'🟡 Средний', HIGH:'🟠 Высокий', CRITICAL:'🔴 Критичный' }[p] || p;
+  const labels = { 
+    LOW: '🟢 Низкий', 
+    MEDIUM: '🟡 Средний', 
+    HIGH: '🟠 Высокий', 
+    CRITICAL: '🔴 Критичный' 
+  };
+  return labels[p] || p;
 }
 
 function escapeHtml(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 // ═══════════════════════════════════════════════════
@@ -212,7 +206,7 @@ function dragStart(e, taskId) {
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', taskId);
   setTimeout(() => {
-    const el = document.getElementById('task-'+taskId);
+    const el = document.getElementById('task-' + taskId);
     if (el) el.classList.add('dragging');
   }, 0);
 }
@@ -241,18 +235,29 @@ async function drop(e) {
   // Find current column
   let oldColId;
   for (const col of state.columns) {
-    if (col.tasks.find(t => t.id === taskId)) { oldColId = col.id; break; }
+    if (col.tasks.find(t => t.id === taskId)) { 
+      oldColId = col.id; 
+      break; 
+    }
   }
   
   if (oldColId === newColId) return;
   
-  await apiCall('POST', '/tasks/move', { task_id: taskId, new_column_id: newColId });
-  
-  const newColName = state.columns.find(c => c.id === newColId)?.title || '?';
-  setLastEvent(`Задача #${taskId} → ${newColName}`);
-  showNotif('↗️', 'Задача перемещена', `#${taskId} → ${newColName}`);
-  
-  renderBoard();
+  try {
+    await apiCall('POST', '/tasks/move', { 
+      task_id: taskId, 
+      new_column_id: newColId 
+    });
+    
+    const newColName = state.columns.find(c => c.id === newColId)?.title || '?';
+    setLastEvent(`Задача #${taskId} → ${newColName}`);
+    showNotif('↗️', 'Задача перемещена', `#${taskId} → ${newColName}`);
+    
+    await loadBoard(); // Перезагружаем всю доску
+  } catch (error) {
+    console.error('Move error:', error);
+    showNotif('❌', 'Ошибка', 'Не удалось переместить задачу');
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -267,18 +272,26 @@ function openNewTask() {
   document.getElementById('taskPriority').value = 'MEDIUM';
   document.getElementById('taskTags').value = '';
   document.getElementById('taskDeadline').value = '';
-  document.getElementById('taskColumn').value = state.columns[0]?.id || 1;
+  if (state.columns.length > 0) {
+    document.getElementById('taskColumn').value = state.columns[0].id;
+  }
   document.getElementById('taskModal').classList.add('active');
   setTimeout(() => document.getElementById('taskTitle').focus(), 50);
 }
 
-function editTask(id, e) {
+async function editTask(id, e) {
   if (e) e.stopPropagation();
   closeMenus();
+  
   let task;
+  let taskColumn;
   for (const col of state.columns) {
-    task = col.tasks.find(t => t.id === id);
-    if (task) break;
+    const found = col.tasks.find(t => t.id === id);
+    if (found) {
+      task = found;
+      taskColumn = col;
+      break;
+    }
   }
   if (!task) return;
   
@@ -289,14 +302,7 @@ function editTask(id, e) {
   document.getElementById('taskPriority').value = task.priority;
   document.getElementById('taskTags').value = (task.tags || []).join(', ');
   document.getElementById('taskDeadline').value = task.deadline || '';
-  
-  // Find column
-  for (const col of state.columns) {
-    if (col.tasks.find(t => t.id === id)) {
-      document.getElementById('taskColumn').value = col.id;
-      break;
-    }
-  }
+  document.getElementById('taskColumn').value = taskColumn.id;
   
   document.getElementById('taskModal').classList.add('active');
   setTimeout(() => document.getElementById('taskTitle').focus(), 50);
@@ -304,50 +310,85 @@ function editTask(id, e) {
 
 async function saveTask() {
   const title = document.getElementById('taskTitle').value.trim();
-  if (!title) { showNotif('⚠️', 'Ошибка', 'Введите название задачи'); return; }
+  if (!title) { 
+    showNotif('⚠️', 'Ошибка', 'Введите название задачи'); 
+    return; 
+  }
   
   const editId = parseInt(document.getElementById('editTaskId').value);
   const desc = document.getElementById('taskDesc').value.trim();
   const priority = document.getElementById('taskPriority').value;
-  const tags = document.getElementById('taskTags').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const tagsRaw = document.getElementById('taskTags').value;
+  const tags = tagsRaw ? tagsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
   const deadline = document.getElementById('taskDeadline').value || null;
   const colId = parseInt(document.getElementById('taskColumn').value);
   
-  if (editId) {
-    // Update
-    const data = { title, description: desc, priority, tags, deadline };
-    await apiCall('PUT', `/tasks/${editId}`, data);
-    
-    // Move if column changed
-    let currentColId;
-    for (const col of state.columns) {
-      if (col.tasks.find(t => t.id === editId)) { currentColId = col.id; break; }
+  try {
+    if (editId) {
+      // Update task
+      const updateData = { 
+        title, 
+        description: desc, 
+        priority, 
+        tags,
+        deadline 
+      };
+      await apiCall('PUT', `/tasks/${editId}`, updateData);
+      
+      // Check if column changed
+      let currentColId = null;
+      for (const col of state.columns) {
+        if (col.tasks.find(t => t.id === editId)) {
+          currentColId = col.id;
+          break;
+        }
+      }
+      if (currentColId && currentColId !== colId) {
+        await apiCall('POST', '/tasks/move', { 
+          task_id: editId, 
+          new_column_id: colId 
+        });
+      }
+      
+      setLastEvent(`Задача #${editId} обновлена`);
+      showNotif('✏️', 'Задача обновлена', title);
+    } else {
+      // Create task
+      const createData = {
+        title,
+        description: desc,
+        priority,
+        column_id: colId,
+        tags
+      };
+      await apiCall('POST', '/tasks', createData);
+      setLastEvent(`Создана задача: ${title}`);
+      showNotif('📝', 'Задача создана', title);
     }
-    if (currentColId !== colId) {
-      await apiCall('POST', '/tasks/move', { task_id: editId, new_column_id: colId });
-    }
     
-    setLastEvent(`Задача #${editId} обновлена`);
-    showNotif('✏️', 'Задача обновлена', title);
-  } else {
-    // Create
-    await apiCall('POST', '/tasks', { title, description: desc, priority, tags, deadline, column_id: colId });
-    setLastEvent(`Создана задача: ${title}`);
-    showNotif('📝', 'Задача создана', title);
+    closeTaskModal();
+    await loadBoard(); // Перезагружаем доску
+  } catch (error) {
+    console.error('Save error:', error);
+    showNotif('❌', 'Ошибка', 'Не удалось сохранить задачу');
   }
-  
-  closeTaskModal();
-  renderBoard();
 }
 
 async function deleteTask(id, e) {
   if (e) e.stopPropagation();
+  
   const task = findTask(id);
   if (!confirm(`Удалить задачу #${id} «${task?.title}»?`)) return;
-  await apiCall('DELETE', `/tasks/${id}`);
-  setLastEvent(`Задача #${id} удалена`);
-  showNotif('🗑️', 'Задача удалена', task?.title || '');
-  renderBoard();
+  
+  try {
+    await apiCall('DELETE', `/tasks/${id}`);
+    setLastEvent(`Задача #${id} удалена`);
+    showNotif('🗑️', 'Задача удалена', task?.title || '');
+    await loadBoard();
+  } catch (error) {
+    console.error('Delete error:', error);
+    showNotif('❌', 'Ошибка', 'Не удалось удалить задачу');
+  }
 }
 
 function findTask(id) {
@@ -363,26 +404,49 @@ function closeTaskModal() {
 }
 
 async function clearDone() {
-  const done = state.columns.find(c => c.title === 'Done');
-  if (!done || !done.tasks.length) { showNotif('ℹ️', 'Нечего очищать', 'Колонка Done пуста'); return; }
-  if (!confirm(`Удалить все ${done.tasks.length} задач из Done?`)) return;
-  for (const t of [...done.tasks]) {
-    await apiCall('DELETE', `/tasks/${t.id}`);
+  const doneColumn = state.columns.find(c => c.title === 'Done');
+  if (!doneColumn || !doneColumn.tasks.length) { 
+    showNotif('ℹ️', 'Нечего очищать', 'Колонка Done пуста'); 
+    return; 
   }
-  showNotif('🗑️', 'Done очищен', `Удалено ${done.tasks.length} задач`);
-  renderBoard();
+  
+  if (!confirm(`Удалить все ${doneColumn.tasks.length} задач из Done?`)) return;
+  
+  for (const task of [...doneColumn.tasks]) {
+    try {
+      await apiCall('DELETE', `/tasks/${task.id}`);
+    } catch (error) {
+      console.error('Delete error:', error);
+    }
+  }
+  showNotif('🗑️', 'Done очищен', `Удалено ${doneColumn.tasks.length} задач`);
+  await loadBoard();
 }
 
+// ═══════════════════════════════════════════════════
+//  COLUMN MANAGEMENT (только для пользователей)
+// ═══════════════════════════════════════════════════
 async function addColumn() {
   closeMenus();
   const name = prompt('Название новой колонки:');
   if (!name) return;
-  const emoji = prompt('Эмодзи для колонки (необязательно):', '📌') || '📌';
-  await apiCall('POST', '/columns', { title: name, emoji });
-  showNotif('➕', 'Колонка добавлена', name);
-  renderBoard();
+  
+  try {
+    await apiCall('POST', '/columns', { 
+      title: name, 
+      board_id: state.boardId 
+    });
+    showNotif('➕', 'Колонка добавлена', name);
+    await loadBoard();
+  } catch (error) {
+    console.error('Add column error:', error);
+    showNotif('❌', 'Ошибка', 'Не удалось добавить колонку');
+  }
 }
 
+// ═══════════════════════════════════════════════════
+//  SORTING & FILTERING (клиентская фильтрация)
+// ═══════════════════════════════════════════════════
 function sortByPriority() {
   const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
   for (const col of state.columns) {
@@ -418,13 +482,13 @@ function exportData() {
   const blob = new Blob([json], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'kanban-export.json';
+  a.download = `kanban-export-${new Date().toISOString().slice(0, 19)}.json`;
   a.click();
   showNotif('💾', 'Экспортировано', 'kanban-export.json');
 }
 
 // ═══════════════════════════════════════════════════
-//  WINDOW CONTROLS
+//  WINDOW CONTROLS (те же, что и были)
 // ═══════════════════════════════════════════════════
 let windowMinimized = false;
 let windowMaximized = true;
@@ -432,7 +496,8 @@ let windowMaximized = true;
 function minimizeWindow() {
   windowMinimized = true;
   document.getElementById('mainWindow').classList.add('minimized');
-  document.getElementById('taskbarMainBtn').classList.remove('active');
+  const taskbarBtn = document.getElementById('taskbarMainBtn');
+  if (taskbarBtn) taskbarBtn.classList.remove('active');
 }
 
 function maximizeWindow() {
@@ -459,7 +524,10 @@ function maximizeWindow() {
 
 function closeWindow() {
   showMsgBox('⚠️', 'Выход', 'Вы уверены, что хотите закрыть KanbanOS 95?\n\nВсе несохранённые данные будут потеряны.', [
-    { label: 'Да', action: () => { document.getElementById('mainWindow').style.display = 'none'; showNotif('👋', 'До свидания!', 'Окно закрыто. Дважды кликните по иконке на рабочем столе.'); } },
+    { label: 'Да', action: () => { 
+      document.getElementById('mainWindow').style.display = 'none'; 
+      showNotif('👋', 'До свидания!', 'Окно закрыто. Дважды кликните по иконке на рабочем столе.'); 
+    } },
     { label: 'Нет', action: closeMsgBox }
   ]);
 }
@@ -470,7 +538,8 @@ function restoreWindow() {
   win.classList.remove('minimized');
   win.classList.add('main-window');
   windowMinimized = false;
-  document.getElementById('taskbarMainBtn').classList.add('active');
+  const taskbarBtn = document.getElementById('taskbarMainBtn');
+  if (taskbarBtn) taskbarBtn.classList.add('active');
 }
 
 function toggleWindowFromTaskbar() {
@@ -482,7 +551,7 @@ function toggleWindowFromTaskbar() {
 }
 
 // ═══════════════════════════════════════════════════
-//  MENUS
+//  MENUS & START MENU
 // ═══════════════════════════════════════════════════
 function toggleMenu(el) {
   const isOpen = el.classList.contains('open');
@@ -494,26 +563,25 @@ function closeMenus() {
   document.querySelectorAll('.menu-item.open').forEach(el => el.classList.remove('open'));
 }
 
-// ═══════════════════════════════════════════════════
-//  START MENU
-// ═══════════════════════════════════════════════════
 function toggleStartMenu() {
   const sm = document.getElementById('startMenu');
   const btn = document.getElementById('startBtn');
   const isOpen = sm.classList.contains('open');
   sm.classList.toggle('open');
-  btn.classList.toggle('open');
+  if (btn) btn.classList.toggle('open');
 }
 
 function closeStartMenu() {
-  document.getElementById('startMenu').classList.remove('open');
-  document.getElementById('startBtn').classList.remove('open');
+  const sm = document.getElementById('startMenu');
+  const btn = document.getElementById('startBtn');
+  if (sm) sm.classList.remove('open');
+  if (btn) btn.classList.remove('open');
 }
 
 // ═══════════════════════════════════════════════════
-//  FUN STUFF
+//  FUN STUFF (мемы, пасхалки)
 // ═══════════════════════════════════════════════════
-const CATS = ['😸','😹','😺','😻','😼','🐱','🙀'];
+const CATS = ['😸', '😹', '😺', '😻', '😼', '🐱', '🙀'];
 const MEMES = [
   { title: 'Дедлайн', text: '«Я сделаю это за выходные»\n\n— Я, каждую пятницу уже 3 года подряд 😅' },
   { title: 'В процессе', text: '«In Progress» с 2023 года\n\n📊 Прогресс: ████░░░░░░ 40%\n\n(Последнее обновление: никогда)' },
@@ -529,7 +597,7 @@ function showMeme() {
   
   const div = document.createElement('div');
   div.className = 'meme-win';
-  div.style.cssText = `top:${80+Math.random()*100}px; left:${80+Math.random()*150}px; width:280px;`;
+  div.style.cssText = `top:${80 + Math.random() * 100}px; left:${80 + Math.random() * 150}px; width:280px;`;
   div.innerHTML = `
     <div class="title-bar" style="cursor:move;" onmousedown="startDragWin(event, this.parentElement)">
       <div class="title-bar-left"><span>${cat}</span><span>${escapeHtml(meme.title)}</span></div>
@@ -537,28 +605,34 @@ function showMeme() {
         <button class="tb-btn" onclick="this.closest('.meme-win').remove()">✕</button>
       </div>
     </div>
-    <div class="meme-content">${meme.text.replace(/\n/g,'<br>')}</div>
+    <div class="meme-content">${meme.text.replace(/\n/g, '<br>')}</div>
   `;
   document.body.appendChild(div);
 }
 
 function showAbout() {
-  closeMenus(); closeStartMenu();
-  document.getElementById('aboutModal').classList.add('active');
+  closeMenus();
+  closeStartMenu();
+  const aboutModal = document.getElementById('aboutModal');
+  if (aboutModal) aboutModal.classList.add('active');
 }
 
 function playMinesweeper() {
   closeStartMenu();
-  document.getElementById('minesweeperModal').classList.add('active');
+  const minesweeperModal = document.getElementById('minesweeperModal');
+  if (minesweeperModal) minesweeperModal.classList.add('active');
 }
 
 function shutDown() {
-  document.getElementById('shutdownModal').classList.add('active');
+  const shutdownModal = document.getElementById('shutdownModal');
+  if (shutdownModal) shutdownModal.classList.add('active');
 }
 
 function doShutdown() {
-  const action = document.getElementById('shutdownAction').value;
-  document.getElementById('shutdownModal').classList.remove('active');
+  const actionSelect = document.getElementById('shutdownAction');
+  const action = actionSelect ? actionSelect.value : '';
+  const shutdownModal = document.getElementById('shutdownModal');
+  if (shutdownModal) shutdownModal.classList.remove('active');
   
   if (action.includes('Выключить')) {
     showProgress('Завершение работы…', 'Windows выполняет завершение работы…', () => {
@@ -582,14 +656,14 @@ function doShutdown() {
         if (!cursor) return;
         if (e.key === 'Enter') {
           const parent = cursor.parentElement;
-          let response = `Bad command or file name`;
-          if (cmd.toLowerCase().includes('dir')) response = `Volume in drive C is KANBAN95\n Directory of C:\\\n\nKANBAN95   &lt;DIR&gt;      07-25-95   1:00p\nWINDOWS    &lt;DIR&gt;      07-25-95   1:00p\n        2 dir(s)     999,999 bytes free`;
-          if (cmd.toLowerCase().includes('help')) response = `FOR HELP, REFRESH THE PAGE :)`;
+          let response = 'Bad command or file name';
+          if (cmd.toLowerCase().includes('dir')) response = 'Volume in drive C is KANBAN95\n Directory of C:\\\n\nKANBAN95   &lt;DIR&gt;      07-25-95   1:00p\nWINDOWS    &lt;DIR&gt;      07-25-95   1:00p\n        2 dir(s)     999,999 bytes free';
+          if (cmd.toLowerCase().includes('help')) response = 'FOR HELP, REFRESH THE PAGE :)';
           if (cmd.toLowerCase().includes('exit')) window.location.reload();
           parent.innerHTML += `<br>${response}<br>C:\\WINDOWS><span id="dosInput">_</span>`;
           cmd = '';
         } else if (e.key === 'Backspace') {
-          cmd = cmd.slice(0,-1);
+          cmd = cmd.slice(0, -1);
           if (cursor) cursor.previousSibling?.remove();
         } else if (e.key.length === 1) {
           cmd += e.key;
@@ -606,7 +680,8 @@ function doShutdown() {
 
 function triggerBSOD() {
   closeMenus();
-  document.getElementById('bsod').classList.add('active');
+  const bsod = document.getElementById('bsod');
+  if (bsod) bsod.classList.add('active');
 }
 
 function showEaster() {
@@ -617,7 +692,7 @@ function showEaster() {
 }
 
 // ═══════════════════════════════════════════════════
-//  DRAGGABLE WINDOWS (мемы)
+//  DRAGGABLE WINDOWS
 // ═══════════════════════════════════════════════════
 let dragWin = null, dragWinOX = 0, dragWinOY = 0;
 
@@ -631,55 +706,70 @@ function startDragWin(e, win) {
 document.addEventListener('mousemove', e => {
   if (!dragWin) return;
   dragWin.style.left = (e.clientX - dragWinOX) + 'px';
-  dragWin.style.top  = (e.clientY - dragWinOY) + 'px';
+  dragWin.style.top = (e.clientY - dragWinOY) + 'px';
 });
+
 document.addEventListener('mouseup', () => { dragWin = null; });
 
 // ═══════════════════════════════════════════════════
 //  MSGBOX
 // ═══════════════════════════════════════════════════
 function showMsgBox(icon, title, text, buttons) {
-  document.getElementById('msgBoxIcon').textContent = icon;
-  document.getElementById('msgBoxBigIcon').textContent = icon;
-  document.getElementById('msgBoxTitle').textContent = title;
-  document.getElementById('msgBoxText').innerHTML = text.replace(/\n/g,'<br>');
-  const acts = document.getElementById('msgBoxActions');
-  acts.innerHTML = '';
-  (buttons || [{ label: 'OK', action: closeMsgBox }]).forEach(b => {
-    const btn = document.createElement('button');
-    btn.className = 'btn btn-primary';
-    btn.textContent = b.label;
-    btn.onclick = b.action;
-    acts.appendChild(btn);
-  });
-  document.getElementById('msgBoxOverlay').classList.add('active');
+  const msgBoxIcon = document.getElementById('msgBoxIcon');
+  const msgBoxBigIcon = document.getElementById('msgBoxBigIcon');
+  const msgBoxTitle = document.getElementById('msgBoxTitle');
+  const msgBoxText = document.getElementById('msgBoxText');
+  const msgBoxActions = document.getElementById('msgBoxActions');
+  
+  if (msgBoxIcon) msgBoxIcon.textContent = icon;
+  if (msgBoxBigIcon) msgBoxBigIcon.textContent = icon;
+  if (msgBoxTitle) msgBoxTitle.textContent = title;
+  if (msgBoxText) msgBoxText.innerHTML = text.replace(/\n/g, '<br>');
+  if (msgBoxActions) {
+    msgBoxActions.innerHTML = '';
+    (buttons || [{ label: 'OK', action: closeMsgBox }]).forEach(b => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary';
+      btn.textContent = b.label;
+      btn.onclick = b.action;
+      msgBoxActions.appendChild(btn);
+    });
+  }
+  const msgBoxOverlay = document.getElementById('msgBoxOverlay');
+  if (msgBoxOverlay) msgBoxOverlay.classList.add('active');
 }
 
 function closeMsgBox() {
-  document.getElementById('msgBoxOverlay').classList.remove('active');
+  const msgBoxOverlay = document.getElementById('msgBoxOverlay');
+  if (msgBoxOverlay) msgBoxOverlay.classList.remove('active');
 }
 
 // ═══════════════════════════════════════════════════
 //  PROGRESS
 // ═══════════════════════════════════════════════════
 function showProgress(title, text, callback) {
-  document.getElementById('progressTitle').textContent = title;
-  document.getElementById('progressText').textContent = text;
-  document.getElementById('progressModal').classList.add('active');
-  const bar = document.getElementById('progressBar');
+  const progressTitle = document.getElementById('progressTitle');
+  const progressText = document.getElementById('progressText');
+  const progressModal = document.getElementById('progressModal');
+  const progressBar = document.getElementById('progressBar');
+  
+  if (progressTitle) progressTitle.textContent = title;
+  if (progressText) progressText.textContent = text;
+  if (progressModal) progressModal.classList.add('active');
+  
   let pct = 0;
   const interval = setInterval(() => {
     pct += Math.random() * 15;
     if (pct >= 100) {
       pct = 100;
-      bar.style.width = '100%';
+      if (progressBar) progressBar.style.width = '100%';
       clearInterval(interval);
       setTimeout(() => {
-        document.getElementById('progressModal').classList.remove('active');
+        if (progressModal) progressModal.classList.remove('active');
         if (callback) callback();
       }, 500);
     } else {
-      bar.style.width = pct + '%';
+      if (progressBar) progressBar.style.width = pct + '%';
     }
   }, 150);
 }
@@ -689,6 +779,8 @@ function showProgress(title, text, callback) {
 // ═══════════════════════════════════════════════════
 function showNotif(icon, title, text) {
   const container = document.getElementById('notifContainer');
+  if (!container) return;
+  
   const el = document.createElement('div');
   el.className = 'notification';
   el.innerHTML = `
@@ -700,11 +792,13 @@ function showNotif(icon, title, text) {
 }
 
 function setLastEvent(text) {
-  document.getElementById('last-event').textContent = 'Событие: ' + text;
+  const lastEvent = document.getElementById('last-event');
+  if (lastEvent) lastEvent.textContent = 'Событие: ' + text;
 }
 
 function setToolbarStatus(text) {
-  document.getElementById('toolbar-status').textContent = text;
+  const toolbarStatus = document.getElementById('toolbar-status');
+  if (toolbarStatus) toolbarStatus.textContent = text;
 }
 
 // ═══════════════════════════════════════════════════
@@ -712,9 +806,10 @@ function setToolbarStatus(text) {
 // ═══════════════════════════════════════════════════
 function updateClock() {
   const now = new Date();
-  const h = String(now.getHours()).padStart(2,'0');
-  const m = String(now.getMinutes()).padStart(2,'0');
-  document.getElementById('clock').textContent = h + ':' + m;
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const clock = document.getElementById('clock');
+  if (clock) clock.textContent = h + ':' + m;
 }
 setInterval(updateClock, 10000);
 updateClock();
@@ -723,14 +818,20 @@ updateClock();
 //  KEYBOARD SHORTCUTS
 // ═══════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openNewTask(); }
+  if (e.ctrlKey && e.key === 'n') { 
+    e.preventDefault(); 
+    openNewTask(); 
+  }
   if (e.key === 'Escape') {
     closeMenus();
     closeStartMenu();
     closeTaskModal();
     closeMsgBox();
   }
-  if (e.key === 'F5') { e.preventDefault(); loadBoard(); }
+  if (e.key === 'F5') { 
+    e.preventDefault(); 
+    loadBoard(); 
+  }
 });
 
 // Close menus on outside click
