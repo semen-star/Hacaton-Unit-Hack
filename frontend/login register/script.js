@@ -1,3 +1,4 @@
+cat > /home/semka/Hacaton-Unit-Hack/frontend/login\ register/script.js << 'EOF'
 const API_BASE = '/api/v1';
 let currentTab = 'login';
 
@@ -23,6 +24,8 @@ function switchTab(tab) {
 
 function showNotification(message, isError = false) {
   const container = document.getElementById('notifContainer');
+  if (!container) return;
+  
   const notif = document.createElement('div');
   notif.className = 'notification';
   notif.innerHTML = `
@@ -71,17 +74,22 @@ async function login() {
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('user', JSON.stringify(data.user));
     
+    console.log('Login successful!', data.user);
+    console.log('Token saved:', localStorage.getItem('access_token'));
+    
     showNotification(`Добро пожаловать, ${data.user.username}!`);
     setStatus('Вход выполнен! Перенаправление...');
     
     // Перенаправление в зависимости от роли
     setTimeout(() => {
       if (data.user.role === 'admin') {
+        console.log('Redirecting to /admin');
         window.location.href = '/admin';
       } else {
+        console.log('Redirecting to /main');
         window.location.href = '/main';
       }
-    }, 1000);
+    }, 500);
     
   } catch (error) {
     console.error('Login error:', error);
@@ -127,12 +135,20 @@ async function register() {
     
     const data = await response.json();
     
-    showNotification('Регистрация успешна! Теперь войдите в систему.');
-    setStatus('Аккаунт создан! Войдите в систему.');
+    // Сохраняем токен и автоматически логиним
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('user', JSON.stringify(data.user));
     
-    // Переключаемся на форму входа
-    switchTab('login');
-    document.getElementById('loginUsername').value = username;
+    showNotification('Регистрация успешна!');
+    setStatus('Аккаунт создан! Перенаправление...');
+    
+    setTimeout(() => {
+      if (data.user.role === 'admin') {
+        window.location.href = '/admin';
+      } else {
+        window.location.href = '/main';
+      }
+    }, 500);
     
   } catch (error) {
     console.error('Register error:', error);
@@ -141,17 +157,24 @@ async function register() {
   }
 }
 
-// Проверяем, есть ли уже токен (если пользователь уже залогинен)
+function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user');
+  window.location.href = '/';
+}
+
+// Проверяем, есть ли уже токен
 function checkExistingToken() {
   const token = localStorage.getItem('access_token');
+  console.log('Checking existing token:', token);
+  
   if (token) {
-    // Проверяем валидность токена
     fetch(`${API_BASE}/auth/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
     }).then(response => {
       if (response.ok) {
         response.json().then(user => {
-          // Токен валиден, перенаправляем
+          console.log('User already logged in:', user);
           if (user.role === 'admin') {
             window.location.href = '/admin';
           } else {
@@ -159,7 +182,7 @@ function checkExistingToken() {
           }
         });
       } else {
-        // Токен невалиден, очищаем
+        console.log('Token invalid, clearing');
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
       }
@@ -181,4 +204,12 @@ document.addEventListener('keypress', (e) => {
   }
 });
 
+// Добавляем обработчик для кнопки выхода (если есть на странице)
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'logoutBtn') {
+    logout();
+  }
+});
+
 checkExistingToken();
+EOF
