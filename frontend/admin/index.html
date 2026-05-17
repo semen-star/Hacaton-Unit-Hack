@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KanbanOS 95 — Администрирование</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="desktop">
+  <div class="admin-window">
+    <div class="title-bar">
+      <div class="title-bar-left">
+        <span>⚙️</span>
+        <span>KanbanOS 95 — Администрирование панель</span>
+      </div>
+      <div class="title-bar-buttons">
+        <button class="tb-btn" onclick="window.location.href='index.html'">✕</button>
+      </div>
+    </div>
+
+    <div class="menu-bar">
+      <div class="menu-item" onclick="toggleMenu(this)"><u>Ф</u>айл
+        <div class="dropdown">
+          <div class="dropdown-item" onclick="exportSettings()">💾 Экспорт настроек</div>
+          <div class="dropdown-item" onclick="importSettings()">📂 Импорт настроек</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item" onclick="window.location.href='index.html'">🚪 Выход на доску</div>
+        </div>
+      </div>
+      <div class="menu-item" onclick="toggleMenu(this)"><u>С</u>ервис
+        <div class="dropdown">
+          <div class="dropdown-item" onclick="flushQueue()">🗑️ Очистить очередь событий</div>
+          <div class="dropdown-item" onclick="simulateLoad()">⚡ Симуляция нагрузки</div>
+        </div>
+      </div>
+      <div class="menu-item" onclick="toggleMenu(this)"><u>П</u>омощь
+        <div class="dropdown">
+          <div class="dropdown-item" onclick="showAbout()">ℹ️ Об админке</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button class="toolbar-btn" onclick="refreshData()">🔄 Обновить</button>
+      <div class="toolbar-sep"></div>
+      <button class="toolbar-btn" onclick="openAddColumnModal()">➕ Добавить колонку</button>
+      <button class="toolbar-btn" onclick="openAddRuleModal()">⚙️ Добавить правило</button>
+      <div class="toolbar-sep"></div>
+      <span class="toolbar-status" id="toolbarStatus">Администратор ONLINE</span>
+    </div>
+
+    <div class="client-area">
+      <div class="admin-tabs">
+        <button class="tab-btn active" onclick="switchTab('columns')">📋 Колонки</button>
+        <button class="tab-btn" onclick="switchTab('rules')">🤖 Автоматизация</button>
+        <button class="tab-btn" onclick="switchTab('queue')">📦 Очередь событий</button>
+        <button class="tab-btn" onclick="switchTab('notify')">🔔 Уведомления</button>
+      </div>
+
+      <!-- Tab: Columns -->
+      <div id="tabColumns" class="tab-pane active">
+        <div class="config-panel">
+          <div class="panel-title">📌 Управление колонками канбан-доски</div>
+          <div id="columnsList"></div>
+          <div style="margin-top:12px;">
+            <button class="toolbar-btn" onclick="openAddColumnModal()">➕ Новая колонка</button>
+          </div>
+        </div>
+        <div class="config-panel">
+          <div class="panel-title">📊 Схема потока задач</div>
+          <div id="flowPreview" style="font-size:11px; padding:8px;"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Automation Rules -->
+      <div id="tabRules" class="tab-pane">
+        <div class="config-panel">
+          <div class="panel-title">⚙️ Правила автоматизации</div>
+          <div id="rulesList"></div>
+          <div style="margin-top:12px;">
+            <button class="toolbar-btn" onclick="openAddRuleModal()">✨ Добавить правило</button>
+          </div>
+        </div>
+        <div class="config-panel">
+          <div class="panel-title">📝 Логи срабатываний</div>
+          <div id="autoLog" class="event-log" style="height:120px;"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Event Queue -->
+      <div id="tabQueue" class="tab-pane">
+        <div class="queue-stats" id="queueStats"></div>
+        <div class="config-panel">
+          <div class="panel-title">📨 Очередь входящих событий (event-driven)</div>
+          <div id="eventQueueList" class="event-log" style="height:250px;"></div>
+          <div style="margin-top:8px;">
+            <button class="toolbar-btn" onclick="processQueue()">▶️ Обработать очередь</button>
+            <button class="toolbar-btn" onclick="flushQueue()">🗑️ Очистить очередь</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Notification Control -->
+      <div id="tabNotify" class="tab-pane">
+        <div class="config-panel">
+          <div class="panel-title">🔔 Системные уведомления</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label><input type="checkbox" id="notifyTaskCreate"> Создание задачи</label>
+            </div>
+            <div class="form-group">
+              <label><input type="checkbox" id="notifyTaskMove"> Перемещение задачи</label>
+            </div>
+            <div class="form-group">
+              <label><input type="checkbox" id="notifyDeadline"> Дедлайн за 1 день</label>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>WebHook URL (опционально):</label>
+              <input type="text" id="webhookUrl" placeholder="https://your-server.com/hook">
+            </div>
+          </div>
+          <button class="toolbar-btn" onclick="saveNotificationSettings()">💾 Сохранить настройки</button>
+        </div>
+        <div class="config-panel">
+          <div class="panel-title">📢 Отправить тестовое уведомление</div>
+          <div class="form-row">
+            <input type="text" id="testNotifMsg" placeholder="Сообщение для всех пользователей" style="flex:1;">
+            <button class="toolbar-btn" onclick="sendTestNotification()">📨 Отправить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div>✅ Административный режим</div>
+      <div>Колонок: <b id="statColumns">0</b></div>
+      <div>Правил: <b id="statRules">0</b></div>
+      <div>Очередь: <b id="statQueueLen">0</b></div>
+    </div>
+  </div>
+</div>
+
+<!-- Taskbar -->
+<div class="taskbar">
+  <button class="start-btn" onclick="toggleStartMenu()">🪟 <b>Пуск</b></button>
+  <div class="taskbar-sep"></div>
+  <button class="taskbar-window-btn active">⚙️ KanbanOS Admin</button>
+  <div class="taskbar-clock" id="clock">00:00</div>
+</div>
+
+<div class="start-menu" id="startMenu">
+  <div class="start-item" onclick="window.location.href='index.html'">📋 Kanban доска</div>
+  <div class="start-item" onclick="refreshData()">🔄 Обновить панель</div>
+  <div class="start-sep"></div>
+  <div class="start-item" onclick="showAbout()">ℹ️ О программе</div>
+</div>
+
+<div id="notifContainer" style="position:fixed; bottom:36px; right:8px; z-index:5000;"></div>
+
+<!-- Modal для добавления колонки/правила -->
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <div class="title-bar" style="margin:-12px -12px 8px -12px; padding:4px;">
+      <span id="modalTitle">Новая колонка</span>
+      <button class="tb-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody"></div>
+    <div style="margin-top:12px; text-align:right;">
+      <button class="toolbar-btn" onclick="submitModal()">OK</button>
+      <button class="toolbar-btn" onclick="closeModal()">Отмена</button>
+    </div>
+  </div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

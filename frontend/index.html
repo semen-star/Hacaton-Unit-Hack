@@ -1,672 +1,359 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Board for Windows 95</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'MS Sans Serif', 'Microsoft Sans Serif', 'Fixedsys', Tahoma, sans-serif;
-            background: #008080;
-            color: #000;
-            min-height: 100vh;
-            font-size: 12px;
-            image-rendering: pixelated;
-        }
-        
-        .desktop {
-            padding: 10px;
-            min-height: 100vh;
-        }
-        
-        /* Окно в стиле Win95 */
-        .window {
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            border-left: 2px solid #dfdfdf;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-            box-shadow: 1px 1px 0 #000;
-            margin-bottom: 0;
-            height: calc(100vh - 20px);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .window.maximized {
-            width: 100% !important;
-            height: 100% !important;
-            top: 0 !important;
-            left: 0 !important;
-        }
-        
-        .title-bar {
-            background: linear-gradient(90deg, #000080, #1084d0);
-            color: white;
-            padding: 2px 3px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: default;
-            height: 24px;
-        }
-        
-        .title-bar-text {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .title-bar-text img {
-            width: 18px;
-            height: 18px;
-        }
-        
-        .title-bar-buttons {
-            display: flex;
-            gap: 2px;
-        }
-        
-        .title-bar-buttons button {
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            border-left: 2px solid #dfdfdf;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-            cursor: pointer;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'MS Sans Serif';
-            font-weight: bold;
-            color: #000;
-            line-height: 1;
-        }
-        
-        .title-bar-buttons button:active {
-            border-top: 2px solid #0a0a0a;
-            border-left: 2px solid #0a0a0a;
-            border-right: 2px solid #dfdfdf;
-            border-bottom: 2px solid #dfdfdf;
-        }
-        
-        .menu-bar {
-            background: #c0c0c0;
-            padding: 2px 5px;
-            display: flex;
-            gap: 5px;
-            border-bottom: 1px solid #808080;
-            font-size: 12px;
-        }
-        
-        .menu-bar span {
-            padding: 2px 6px;
-            cursor: pointer;
-        }
-        
-        .menu-bar span:hover {
-            background: #000080;
-            color: white;
-        }
-        
-        .toolbar {
-            background: #c0c0c0;
-            padding: 4px;
-            display: flex;
-            gap: 3px;
-            border-bottom: 1px solid #808080;
-            flex-wrap: wrap;
-        }
-        
-        .toolbar button {
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            border-left: 2px solid #dfdfdf;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-            padding: 2px 10px;
-            font-family: 'MS Sans Serif';
-            font-size: 11px;
-            cursor: pointer;
-            min-width: 28px;
-            white-space: nowrap;
-        }
-        
-        .toolbar button:active {
-            border-top: 2px solid #0a0a0a;
-            border-left: 2px solid #0a0a0a;
-            border-right: 2px solid #dfdfdf;
-            border-bottom: 2px solid #dfdfdf;
-        }
-        
-        .status-bar {
-            background: #c0c0c0;
-            border-top: 1px solid #808080;
-            padding: 3px 5px;
-            font-size: 11px;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .client-area {
-            flex: 1;
-            background: #ffffff;
-            border-top: 2px solid #808080;
-            border-left: 2px solid #808080;
-            border-right: 2px solid #dfdfdf;
-            border-bottom: 2px solid #dfdfdf;
-            padding: 8px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .board {
-            display: flex;
-            gap: 0;
-            flex: 1;
-            overflow-x: auto;
-        }
-        
-        .column {
-            background: #c0c0c0;
-            min-width: 300px;
-            max-width: 300px;
-            display: flex;
-            flex-direction: column;
-            margin-right: 0;
-            border-right: 1px solid #808080;
-        }
-        
-        .column:last-child {
-            border-right: none;
-        }
-        
-        .column-header {
-            background: #c0c0c0;
-            padding: 4px 8px;
-            font-weight: bold;
-            font-size: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #808080;
-        }
-        
-        .column-header .count {
-            background: #ffffff;
-            border: 1px solid #808080;
-            padding: 1px 6px;
-            font-size: 11px;
-        }
-        
-        .column-body {
-            padding: 4px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            flex: 1;
-            min-height: 200px;
-            background: #ffffff;
-            overflow-y: auto;
-        }
-        
-        .card {
-            background: #ffffcc;
-            border: 1px solid #808080;
-            padding: 8px;
-            cursor: grab;
-            font-size: 11px;
-            position: relative;
-        }
-        
-        .card:hover {
-            border: 1px solid #000;
-        }
-        
-        .card:active {
-            cursor: grabbing;
-        }
-        
-        .card-title {
-            font-weight: bold;
-            margin-bottom: 4px;
-            font-size: 12px;
-            color: #000080;
-        }
-        
-        .card-desc {
-            font-size: 11px;
-            color: #333;
-            margin-bottom: 6px;
-        }
-        
-        .card-meta {
-            display: flex;
-            gap: 4px;
-            flex-wrap: wrap;
-            font-size: 10px;
-            align-items: center;
-        }
-        
-        .priority {
-            padding: 1px 4px;
-            font-weight: bold;
-            font-size: 10px;
-            border: 1px solid #808080;
-        }
-        
-        .priority-LOW { background: #c0ffc0; color: #006400; }
-        .priority-MEDIUM { background: #ffff80; color: #666600; }
-        .priority-HIGH { background: #ffcc80; color: #804000; }
-        .priority-CRITICAL { background: #ff8080; color: #800000; }
-        
-        .tag {
-            background: #e0e0e0;
-            border: 1px solid #808080;
-            padding: 1px 4px;
-            font-size: 10px;
-        }
-        
-        /* Модальное окно Win95 */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .modal-overlay.active { display: flex; }
-        
-        .modal-window {
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            border-left: 2px solid #dfdfdf;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-            box-shadow: 2px 2px 0 #000;
-            width: 400px;
-            position: relative;
-            z-index: 1001;
-        }
-        
-        .modal-content {
-            padding: 12px;
-        }
-        
-        .modal-content h2 {
-            font-size: 14px;
-            margin-bottom: 12px;
-            color: #000080;
-        }
-        
-        .field {
-            margin-bottom: 8px;
-        }
-        
-        .field label {
-            display: block;
-            margin-bottom: 2px;
-            font-size: 11px;
-        }
-        
-        .field input,
-        .field textarea,
-        .field select {
-            width: 100%;
-            padding: 3px 5px;
-            border-top: 2px solid #808080;
-            border-left: 2px solid #808080;
-            border-right: 2px solid #dfdfdf;
-            border-bottom: 2px solid #dfdfdf;
-            font-family: 'MS Sans Serif';
-            font-size: 11px;
-            background: #fff;
-        }
-        
-        .field textarea { resize: vertical; min-height: 60px; }
-        
-        .modal-actions {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-            margin-top: 12px;
-        }
-        
-        .btn-ok, .btn-cancel {
-            font-family: 'MS Sans Serif';
-            font-size: 11px;
-            padding: 4px 20px;
-            min-width: 75px;
-            cursor: pointer;
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            border-left: 2px solid #dfdfdf;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-        }
-        
-        .btn-ok:active, .btn-cancel:active {
-            border-top: 2px solid #0a0a0a;
-            border-left: 2px solid #0a0a0a;
-            border-right: 2px solid #dfdfdf;
-            border-bottom: 2px solid #dfdfdf;
-        }
-        
-        .btn-ok:focus {
-            border: 2px solid #000;
-            outline: 1px dotted #000;
-            outline-offset: -4px;
-        }
-        
-        /* Иконка в трее */
-        .tray-icon {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            padding: 2px 4px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 11px;
-            height: 26px;
-        }
-        
-        .tray-icon .start-button {
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            border-left: 2px solid #dfdfdf;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-            padding: 2px 8px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 11px;
-            font-family: 'MS Sans Serif';
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-        
-        .tray-icon .start-button:active {
-            border-top: 2px solid #0a0a0a;
-            border-left: 2px solid #0a0a0a;
-            border-right: 2px solid #dfdfdf;
-            border-bottom: 2px solid #dfdfdf;
-        }
-        
-        .tray-icon .taskbar-item {
-            background: #c0c0c0;
-            border-top: 2px solid #dfdfdf;
-            border-left: 2px solid #dfdfdf;
-            border-right: 2px solid #0a0a0a;
-            border-bottom: 2px solid #0a0a0a;
-            padding: 2px 10px;
-            font-size: 11px;
-            cursor: pointer;
-        }
-        
-        .tray-icon .taskbar-item:active {
-            border-top: 2px solid #0a0a0a;
-            border-left: 2px solid #0a0a0a;
-            border-right: 2px solid #dfdfdf;
-            border-bottom: 2px solid #dfdfdf;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KanbanOS 95 — Система управления задачами</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="desktop">
-        <div class="window maximized">
-            <!-- Заголовок окна -->
-            <div class="title-bar">
-                <div class="title-bar-text">
-                    <span>📋</span>
-                    <span>Kanban Board v1.0</span>
-                </div>
-                <div class="title-bar-buttons">
-                    <button>─</button>
-                    <button>□</button>
-                    <button>✕</button>
-                </div>
-            </div>
-            
-            <!-- Меню -->
-            <div class="menu-bar">
-                <span><u>Ф</u>айл</span>
-                <span><u>П</u>равка</span>
-                <span><u>В</u>ид</span>
-                <span><u>З</u>адачи</span>
-                <span><u>С</u>правка</span>
-            </div>
-            
-            <!-- Панель инструментов -->
-            <div class="toolbar">
-                <button onclick="openModal()">📝 Новая</button>
-                <button>✂️ Вырезать</button>
-                <button>📋 Копировать</button>
-                <button>📌 Вставить</button>
-                <button>🗑️ Удалить</button>
-                <button>🔄 Обновить</button>
-            </div>
-            
-            <!-- Рабочая область -->
-            <div class="client-area">
-                <div class="board" id="board">
-                    <div class="column">
-                        <div class="column-header">
-                            📋 To Do
-                            <span class="count" id="todo-count">0</span>
-                        </div>
-                        <div class="column-body" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
-                    </div>
-                    <div class="column">
-                        <div class="column-header">
-                            🔄 In Progress
-                            <span class="count" id="progress-count">0</span>
-                        </div>
-                        <div class="column-body" id="in-progress" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
-                    </div>
-                    <div class="column">
-                        <div class="column-header">
-                            ✅ Done
-                            <span class="count" id="done-count">0</span>
-                        </div>
-                        <div class="column-body" id="done" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Строка состояния -->
-            <div class="status-bar">
-                <span>📋 Задач: <b id="total-tasks">0</b></span>
-                <span>|</span>
-                <span>🟢 Готово</span>
-            </div>
-        </div>
-        
-        <!-- Панель задач (как в Win95) -->
-        <div class="tray-icon">
-            <div class="start-button">
-                <b>Пуск</b>
-            </div>
-            <div class="taskbar-item">
-                📋 Kanban Board v1.0
-            </div>
-        </div>
+
+<!-- ═══════════════ DESKTOP ═══════════════ -->
+<div class="desktop" id="desktop">
+
+  <!-- Desktop icons -->
+  <div class="desktop-icons">
+    <div class="desktop-icon" ondblclick="restoreWindow()">
+      <div class="icon-img">📋</div>
+      <div class="icon-label">Kanban Board</div>
     </div>
-    
-    <!-- Модальное окно Win95 -->
-    <div class="modal-overlay" id="taskModal">
-        <div class="modal-window">
-            <div class="title-bar">
-                <span>📝 Создание задачи</span>
-                <div class="title-bar-buttons">
-                    <button onclick="closeModal()">✕</button>
-                </div>
-            </div>
-            <div class="modal-content">
-                <div class="field">
-                    <label>Название задачи:</label>
-                    <input type="text" id="taskTitle" placeholder="">
-                </div>
-                <div class="field">
-                    <label>Описание:</label>
-                    <textarea id="taskDesc" placeholder=""></textarea>
-                </div>
-                <div class="field">
-                    <label>Приоритет:</label>
-                    <select id="taskPriority">
-                        <option value="LOW">Низкий</option>
-                        <option value="MEDIUM" selected>Средний</option>
-                        <option value="HIGH">Высокий</option>
-                        <option value="CRITICAL">Критичный</option>
-                    </select>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn-ok" onclick="createTask()">OK</button>
-                    <button class="btn-cancel" onclick="closeModal()">Отмена</button>
-                </div>
-            </div>
-        </div>
+    <div class="desktop-icon" ondblclick="window.location.href='admin.html'">
+      <div class="icon-img">⚙️</div>
+      <div class="icon-label">Администрирование</div>
+    </div>
+    <div class="desktop-icon" ondblclick="showMeme()">
+      <div class="icon-img">🐱</div>
+      <div class="icon-label">Котик</div>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN WINDOW ═══ -->
+  <div class="window main-window" id="mainWindow">
+
+    <!-- Title bar -->
+    <div class="title-bar" id="titleBar">
+      <div class="title-bar-left">
+        <span class="title-icon">📋</span>
+        <span>KanbanOS 95 — Система управления задачами</span>
+      </div>
+      <div class="title-bar-buttons">
+        <button class="tb-btn" title="Свернуть" onclick="minimizeWindow()">_</button>
+        <button class="tb-btn" title="Развернуть/Восстановить" onclick="maximizeWindow()" id="maxBtn">□</button>
+        <button class="tb-btn" title="Закрыть" style="font-weight:900; margin-left:2px;" onclick="closeWindow()">✕</button>
+      </div>
     </div>
 
-<script>
-    const BOARD_ID = 1;
+    <!-- Menu bar -->
+    <div class="menu-bar" id="menuBar">
+      <div class="menu-item" onclick="toggleMenu(this)">
+        <u>Ф</u>айл
+        <div class="dropdown">
+          <div class="dropdown-item" onclick="openNewTask()">📝 Новая задача <span class="shortcut">Ctrl+N</span></div>
+          <div class="dropdown-item" onclick="exportData()">💾 Экспорт данных</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item" onclick="closeWindow()">✕ Выход</div>
+        </div>
+      </div>
+      <div class="menu-item" onclick="toggleMenu(this)">
+        <u>П</u>равка
+        <div class="dropdown">
+          <div class="dropdown-item disabled">↩ Отменить <span class="shortcut">Ctrl+Z</span></div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item disabled">✂️ Вырезать <span class="shortcut">Ctrl+X</span></div>
+          <div class="dropdown-item disabled">📋 Копировать <span class="shortcut">Ctrl+C</span></div>
+          <div class="dropdown-item disabled">📌 Вставить <span class="shortcut">Ctrl+V</span></div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item" onclick="clearDone()">🗑️ Очистить «Done»</div>
+        </div>
+      </div>
+      <div class="menu-item" onclick="toggleMenu(this)">
+        <u>В</u>ид
+        <div class="dropdown">
+          <div class="dropdown-item" onclick="toggleCompactMode()">🗜️ Компактный вид</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item" onclick="loadBoard()">🔄 Обновить доску <span class="shortcut">F5</span></div>
+        </div>
+      </div>
+      <div class="menu-item" onclick="toggleMenu(this)">
+        <u>З</u>адачи
+        <div class="dropdown">
+          <div class="dropdown-item" onclick="openNewTask()">📝 Создать задачу</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item" onclick="sortByPriority()">⬆️ Сортировать по приоритету</div>
+          <div class="dropdown-item" onclick="filterOverdue()">🔴 Показать просроченные</div>
+        </div>
+      </div>
+      <div class="menu-item" onclick="toggleMenu(this)">
+        <u>С</u>правка
+        <div class="dropdown">
+          <div class="dropdown-item" onclick="showAbout()">ℹ️ О программе</div>
+          <div class="dropdown-item" onclick="showEaster()">🥚 ???</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-item" onclick="triggerBSOD()">💀 Синий экран (шутка)</div>
+        </div>
+      </div>
+    </div>
 
-    async function loadBoard() {
-        try {
-            const resp = await fetch(`/api/v1/boards/${BOARD_ID}`);
-            const board = await resp.json();
-            console.log('Доска загружена:', board);
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <button class="toolbar-btn" onclick="openNewTask()">📝 <span>Новая задача</span></button>
+      <div class="toolbar-sep"></div>
+      <button class="toolbar-btn" onclick="loadBoard()" title="Обновить">🔄</button>
+      <button class="toolbar-btn" onclick="clearDone()" title="Очистить Done">🗑️</button>
+      <div class="toolbar-sep"></div>
+      <button class="toolbar-btn" onclick="sortByPriority()">⬆️ <span>Сортировать</span></button>
+      <button class="toolbar-btn" onclick="filterOverdue()">🔴 <span>Просроченные</span></button>
+      <div class="toolbar-sep"></div>
+      <span class="toolbar-label" id="toolbar-status">Готово</span>
+    </div>
 
-            if (!board.columns) return;
+    <!-- Client area -->
+    <div class="client-area">
+      <div class="board" id="board">
+        <!-- колонки рендерятся JS -->
+        <div class="add-column-btn" title="Добавить колонку" onclick="addColumn()">+</div>
+      </div>
+    </div>
 
-            board.columns.forEach(col => {
-                // "To Do" → "todo", "In Progress" → "in-progress", "Done" → "done"
-                const colKey = col.title
-                    .toLowerCase()
-                    .replace(/ /g, '-')
-                    .replace('to-do', 'todo');
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="status-cell"><span class="status-dot green"></span>Онлайн</div>
+      <div class="status-cell">Задач: <b id="total-tasks">0</b></div>
+      <div class="status-cell">Выбрано: <b id="selected-count">0</b></div>
+      <div class="status-cell" id="last-event">Последнее событие: —</div>
+    </div>
+  </div>
+</div>
 
-                const container = document.getElementById(colKey);
-                const counter = document.getElementById(colKey + '-count');
+<!-- ═══════════════ TASKBAR ═══════════════ -->
+<div class="taskbar">
+  <button class="start-btn" id="startBtn" onclick="toggleStartMenu()">
+    🪟 <b>Пуск</b>
+  </button>
+  <div class="taskbar-sep"></div>
+  <button class="taskbar-window-btn active" id="taskbarMainBtn" onclick="toggleWindowFromTaskbar()">
+    📋 KanbanOS 95
+  </button>
+  <div class="taskbar-clock" id="clock">00:00</div>
+</div>
 
-                console.log('Колонка:', colKey, 'Контейнер:', container, 'Счётчик:', counter);
+<!-- ═══════════════ START MENU ═══════════════ -->
+<div class="start-menu" id="startMenu">
+  <div class="start-menu-sidebar">
+    <b>Kanban</b><span>OS 95</span>
+  </div>
+  <div class="start-menu-items">
+    <div class="start-item" onclick="closeStartMenu(); openNewTask()">
+      <span class="si-icon">📝</span>
+      <span class="si-label">Новая задача</span>
+    </div>
+    <div class="start-item" onclick="closeStartMenu(); window.location.href='admin.html'">
+      <span class="si-icon">⚙️</span>
+      <span class="si-label">Администрирование</span>
+    </div>
+    <div class="start-item" onclick="closeStartMenu(); loadBoard()">
+      <span class="si-icon">🔄</span>
+      <span class="si-label">Обновить доску</span>
+    </div>
+    <div class="start-sep"></div>
+    <div class="start-item" onclick="closeStartMenu(); showMeme()">
+      <span class="si-icon">😂</span>
+      <span class="si-label">Котики и мемы</span>
+    </div>
+    <div class="start-item" onclick="closeStartMenu(); playMinesweeper()">
+      <span class="si-icon">💣</span>
+      <span class="si-label">Сапёр</span>
+    </div>
+    <div class="start-item" onclick="closeStartMenu(); showAbout()">
+      <span class="si-icon">ℹ️</span>
+      <span class="si-label">О программе</span>
+    </div>
+    <div class="start-sep"></div>
+    <div class="start-item" onclick="closeStartMenu(); shutDown()">
+      <span class="si-icon">🔌</span>
+      <span class="si-label">Выключить…</span>
+    </div>
+  </div>
+</div>
 
-                if (!container) {
-                    console.error('Не найден контейнер для колонки:', colKey);
-                    return;
-                }
+<!-- ═══════════════ MODALS ═══════════════ -->
 
-                container.innerHTML = (col.tasks || []).map(t => `
-                    <div class="card" draggable="true" ondragstart="drag(event)" id="task-${t.id}">
-                        <div class="card-title">[${t.id}] ${t.title}</div>
-                        <div class="card-desc">${t.description || ''}</div>
-                        <div class="card-meta">
-                            <span class="priority priority-${t.priority}">${t.priority}</span>
-                            ${(t.tags || []).map(tag => `<span class="tag">${tag}</span>`).join('')}
-                        </div>
-                    </div>
-                `).join('');
+<!-- New/Edit task -->
+<div class="overlay" id="taskModal">
+  <div class="modal-win">
+    <div class="title-bar">
+      <div class="title-bar-left"><span class="title-icon">📝</span><span id="modalTitle">Новая задача</span></div>
+      <div class="title-bar-buttons"><button class="tb-btn" onclick="closeTaskModal()">✕</button></div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editTaskId">
+      <div class="field">
+        <label>Название задачи:*</label>
+        <input type="text" id="taskTitle" placeholder="Введите название">
+      </div>
+      <div class="field">
+        <label>Описание:</label>
+        <textarea id="taskDesc" placeholder="Подробное описание задачи"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Приоритет:</label>
+          <select id="taskPriority">
+            <option value="LOW">🟢 Низкий</option>
+            <option value="MEDIUM" selected>🟡 Средний</option>
+            <option value="HIGH">🟠 Высокий</option>
+            <option value="CRITICAL">🔴 Критичный</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Колонка:</label>
+          <select id="taskColumn"></select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Теги (через запятую):</label>
+          <input type="text" id="taskTags" placeholder="frontend, bug, срочно">
+        </div>
+        <div class="field">
+          <label>Дедлайн:</label>
+          <input type="date" id="taskDeadline">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="saveTask()">OK</button>
+        <button class="btn" onclick="closeTaskModal()">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-                if (counter) counter.textContent = (col.tasks || []).length;
-            });
+<!-- Message box -->
+<div class="overlay" id="msgBoxOverlay">
+  <div class="modal-win" style="width:320px; min-width:280px;">
+    <div class="title-bar">
+      <div class="title-bar-left"><span class="title-icon" id="msgBoxIcon">ℹ️</span><span id="msgBoxTitle">Сообщение</span></div>
+      <div class="title-bar-buttons"><button class="tb-btn" onclick="closeMsgBox()">✕</button></div>
+    </div>
+    <div class="modal-body msgbox">
+      <div class="msg-icon" id="msgBoxBigIcon">ℹ️</div>
+      <div class="msg-text" id="msgBoxText"></div>
+      <div class="modal-actions" id="msgBoxActions"></div>
+    </div>
+  </div>
+</div>
 
-            // Считаем общее количество задач
-            const total = (board.columns || []).reduce((s, c) => s + (c.tasks || []).length, 0);
-            const totalEl = document.getElementById('total-tasks');
-            if (totalEl) totalEl.textContent = total;
+<!-- About -->
+<div class="overlay" id="aboutModal">
+  <div class="modal-win" style="width:380px;">
+    <div class="title-bar">
+      <div class="title-bar-left"><span class="title-icon">📋</span><span>О программе KanbanOS 95</span></div>
+      <div class="title-bar-buttons"><button class="tb-btn" onclick="document.getElementById('aboutModal').classList.remove('active')">✕</button></div>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      <div style="font-size:48px; margin:8px 0;">📋</div>
+      <div style="font-size:14px; font-weight:bold; margin-bottom:4px;">KanbanOS 95</div>
+      <div style="font-size:11px; color:#444; margin-bottom:12px;">Версия 2.0.0 (Build 2026)</div>
+      <div style="font-size:11px; line-height:1.6; text-align:left; margin-bottom:12px;">
+        Система управления задачами в стиле Windows 95.<br>
+        Создана с ❤️ и ностальгией командой МГТУ Носова BitKillers.<br><br>
+        ©2026 KanbanOS Corp. Все права защищены.<br>
+        Это программное обеспечение защищено авторским правом и международными договорами.<br>
+        но это только в теории :3.<br>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('aboutModal').classList.remove('active')">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-        } catch (e) {
-            console.error('Ошибка загрузки:', e);
-        }
-    }
+<!-- Minesweeper joke -->
+<div class="overlay" id="minesweeperModal">
+  <div class="modal-win" style="width:300px;">
+    <div class="title-bar">
+      <div class="title-bar-left"><span class="title-icon">💣</span><span>Сапёр</span></div>
+      <div class="title-bar-buttons"><button class="tb-btn" onclick="document.getElementById('minesweeperModal').classList.remove('active')">✕</button></div>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      <div style="font-size:48px; margin:8px 0;">💣</div>
+      <div style="font-size:12px; margin-bottom:12px;">Этот компонент был удалён системным администратором.<br>Обратитесь в отдел IT.</div>
+      <div style="font-size:11px; color:#888; margin-bottom:12px;">Error Code: 0x0000GAME_NOT_FOUND</div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('minesweeperModal').classList.remove('active')">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-    function drag(ev) {
-        ev.dataTransfer.setData("text", ev.target.closest('.card').id);
-    }
+<!-- Shutdown -->
+<div class="overlay" id="shutdownModal">
+  <div class="modal-win" style="width:320px;">
+    <div class="title-bar">
+      <div class="title-bar-left"><span class="title-icon">🔌</span><span>Завершение работы Windows</span></div>
+      <div class="title-bar-buttons"><button class="tb-btn" onclick="document.getElementById('shutdownModal').classList.remove('active')">✕</button></div>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <div style="font-size:36px;">🔌</div>
+        <div style="font-size:12px; line-height:1.6;">Выберите действие, которое требуется выполнить:</div>
+      </div>
+      <div class="field">
+        <select id="shutdownAction">
+          <option>Выключить компьютер</option>
+          <option>Перезапустить компьютер</option>
+          <option>Перезапустить в режиме MS-DOS</option>
+          <option>Закрыть все программы и войти снова</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" onclick="doShutdown()">OK</button>
+        <button class="btn" onclick="document.getElementById('shutdownModal').classList.remove('active')">Отмена</button>
+        <button class="btn" onclick="document.getElementById('shutdownModal').classList.remove('active')">Справка</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-    function allowDrop(ev) {
-        ev.preventDefault();
-    }
+<!-- Progress -->
+<div class="overlay" id="progressModal">
+  <div class="modal-win progress-win" style="width:320px;">
+    <div class="title-bar">
+      <div class="title-bar-left"><span class="title-icon">⏳</span><span id="progressTitle">Загрузка…</span></div>
+    </div>
+    <div class="modal-body" style="text-align:center;">
+      <div style="font-size:12px; margin-bottom:8px;" id="progressText">Пожалуйста, подождите…</div>
+      <div class="progress-outer"><div class="progress-inner" id="progressBar"></div></div>
+    </div>
+  </div>
+</div>
 
-    async function drop(ev) {
-    ev.preventDefault();
-    const taskId = parseInt(ev.dataTransfer.getData("text").replace('task-', ''));
-    const newColKey = ev.target.closest('.column-body').id;
-    const colMap = { 'todo': 1, 'in-progress': 2, 'done': 3 };
-    const newColId = colMap[newColKey];
-    if (!newColId) return;
+<!-- BSOD -->
+<div class="bsod" id="bsod" onclick="document.getElementById('bsod').classList.remove('active')">
+  <br><br>
+  <b>A fatal exception 0E has occurred at 0028:C0011E36 in VxD VMM(01) + 00010E36.</b>
+  <br><br>
+  The current application will be terminated.
+  <br><br>
+  * Press any key to terminate the current application.<br>
+  * Press CTRL+ALT+DEL again to restart your computer. You will<br>
+  &nbsp;&nbsp;lose any unsaved information in all applications.<br>
+  <br>
+  <b>KanbanOS 95</b> caused an invalid page fault in module <b>KANBAN32.EXE</b>
+  <br><br>
+  EAX=00000000 CS=0167 EIP=bff9b468 EFLGS=00010246<br>
+  EBX=00000000 SS=016f ESP=0063fd88 EBP=0063fdb4<br>
+  ECX=bff9b420 DS=016f ESI=00000000 FS=168f<br>
+  EDX=bff76855 ES=016f EDI=0063fe10 GS=0000<br>
+  <br>
+  <b>Press any key to continue _</b>
+  <br><br><br>
+  <span style="opacity:0.6; font-size:12px;">(Нажмите в любом месте, чтобы закрыть)</span>
+</div>
 
-    // Если перетащили в Done — удаляем задачу
-    if (newColId === 3) {
-        if (!confirm('Удалить задачу?')) return;
-        
-        await fetch(`/api/v1/tasks/${taskId}`, { method: 'DELETE' });
-        loadBoard();
-        return;
-    }
+<!-- Notifications container -->
+<div id="notifContainer" style="position:fixed; bottom:calc(var(--taskbar-h)+8px); right:8px; display:flex; flex-direction:column-reverse; gap:4px; z-index:5000;"></div>
 
-    // Иначе перемещаем
-    await fetch(`/api/v1/tasks/move`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task_id: taskId, new_column_id: newColId })
-    });
-    loadBoard();
-}
-
-    function openModal() {
-        document.getElementById('taskModal').classList.add('active');
-        document.getElementById('taskTitle').focus();
-    }
-
-    function closeModal() {
-        document.getElementById('taskModal').classList.remove('active');
-        document.getElementById('taskTitle').value = '';
-        document.getElementById('taskDesc').value = '';
-    }
-
-    async function createTask() {
-        const title = document.getElementById('taskTitle').value.trim();
-        const desc = document.getElementById('taskDesc').value.trim();
-        const priority = document.getElementById('taskPriority').value;
-
-        if (!title) return alert('Введите название!');
-
-        const resp = await fetch(`/api/v1/tasks`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description: desc, priority, column_id: 1 })
-        });
-
-        if (resp.ok) {
-            closeModal();
-            loadBoard();
-        } else {
-            alert('Ошибка создания задачи');
-        }
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
-    });
-
-    loadBoard();
-</script>
+<script src="script.js"></script>
 </body>
 </html>
