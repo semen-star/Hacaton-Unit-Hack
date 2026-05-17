@@ -27,6 +27,8 @@ async function checkAuth() {
     }
     
     currentUser = await response.json();
+    console.log('Current user:', currentUser);  // ← добавить
+  console.log('User role:', currentUser.role);  // ← добавить
     
     // Показываем имя пользователя в тулбаре
     const userInfo = document.getElementById('userInfo');
@@ -35,10 +37,10 @@ async function checkAuth() {
     }
     
     // Показываем кнопку админки только для админов
-    const adminIcon = document.querySelector('.desktop-icon[ondblclick="goToAdmin()"]');
-    if (adminIcon && currentUser.role !== 'admin') {
-      adminIcon.style.display = 'none';
-    }
+const adminIcon = document.querySelector('.desktop-icon[ondblclick="goToAdmin()"]');
+if (adminIcon && currentUser.role !== 'admin') {
+  adminIcon.style.display = 'none';
+}
     
     return true;
   } catch (error) {
@@ -498,14 +500,15 @@ async function addColumn() {
   if (!name) return;
   
   try {
-    await apiCall('POST', '/columns', { 
+    const response = await apiCall('POST', '/columns', { 
       title: name, 
       board_id: state.boardId 
     });
+    console.log('Column created:', response);  // ← добавить
     showNotif('➕', 'Колонка добавлена', name);
     await loadBoard();
   } catch (error) {
-    console.error('Add column error:', error);
+    console.error('Add column error:', error);  // ← уже есть, посмотри что в консоли
     showNotif('❌', 'Ошибка', 'Не удалось добавить колонку');
   }
 }
