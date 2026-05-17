@@ -28,7 +28,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
 app.include_router(boards.router, prefix="/api/v1", tags=["boards"])
-app.include_router(columns.router, prefix="/api/v1", tags=["columns"])
+app.include_router(columns.router, prefix="/api/v1/columns", tags=["columns"])
 app.include_router(notification.router, prefix="/api/v1", tags=["notifications"])
 app.include_router(init.router, prefix="/api/v1", tags=["init"])
 

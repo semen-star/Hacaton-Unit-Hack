@@ -15,21 +15,22 @@ from src.models.column import Column
 class ColumnCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=100)
     board_id: int
-    position: Optional[int] = 0  # ← исправлено: position вместо order
+    position: Optional[int] = 0
 
 
 class ColumnResponse(BaseModel):
     id: int
     title: str
     board_id: int
-    position: int  # ← исправлено: position вместо order
-    created_at: Optional[datetime] = None  # может не быть в модели
+    position: int
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
 
-router = APIRouter(prefix="/columns", tags=["columns"])
+# ⚠️ ВАЖНО: prefix убран, теперь весь путь формируется в main.py
+router = APIRouter(tags=["columns"])
 
 
 @router.post("/", response_model=ColumnResponse, status_code=status.HTTP_201_CREATED)
@@ -39,7 +40,6 @@ async def create_column(
     db: AsyncSession = Depends(get_db)
 ):
     """Создание новой колонки (только админ)"""
-    # Проверяем существование доски
     result = await db.execute(select(Board).where(Board.id == column_data.board_id))
     board = result.scalar_one_or_none()
     
@@ -49,11 +49,10 @@ async def create_column(
             detail=f"Board with id {column_data.board_id} not found"
         )
     
-    # Создаём колонку с правильным именем поля
     new_column = Column(
         title=column_data.title,
         board_id=column_data.board_id,
-        position=column_data.position or 0  # ← position вместо order
+        position=column_data.position or 0
     )
     
     db.add(new_column)
@@ -80,7 +79,7 @@ async def get_all_columns(
         result = await db.execute(
             select(Column)
             .where(Column.board_id == board_id)
-            .order_by(Column.position)  # ← position вместо order
+            .order_by(Column.position)
         )
     else:
         result = await db.execute(select(Column).order_by(Column.position))
