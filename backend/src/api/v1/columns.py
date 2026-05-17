@@ -49,10 +49,20 @@ async def create_column(
             detail=f"Board with id {column_data.board_id} not found"
         )
     
+    # 🔧 ВЫЧИСЛЯЕМ СЛЕДУЮЩУЮ ПОЗИЦИЮ
+    result = await db.execute(
+        select(Column.position)
+        .where(Column.board_id == column_data.board_id)
+        .order_by(Column.position.desc())
+        .limit(1)
+    )
+    max_position = result.scalar_one_or_none()
+    next_position = (max_position + 1) if max_position is not None else 0
+    
     new_column = Column(
         title=column_data.title,
         board_id=column_data.board_id,
-        position=column_data.position or 0
+        position=next_position  # ← используем вычисленную позицию
     )
     
     db.add(new_column)
