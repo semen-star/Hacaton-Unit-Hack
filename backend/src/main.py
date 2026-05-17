@@ -32,11 +32,25 @@ app.include_router(init.router)
 frontend_path = Path(__file__).resolve().parent.parent.parent / "frontend"
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
-    
+
     @app.get("/")
     async def root():
         return FileResponse(str(frontend_path / "index.html"))
-    
+
+    @app.get("/admin")
+    async def admin():
+        admin_file = frontend_path / "admin" / "admin.html"
+        if admin_file.exists():
+            return FileResponse(str(admin_file))
+        return Response(status_code=404)
+
+    @app.get("/admin/admin.html")
+    async def admin_html():
+        admin_file = frontend_path / "admin" / "admin.html"
+        if admin_file.exists():
+            return FileResponse(str(admin_file))
+        return Response(status_code=404)
+
     @app.get("/favicon.ico")
     async def favicon():
         favicon_file = frontend_path / "favicon.ico"

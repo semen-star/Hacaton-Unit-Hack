@@ -1,86 +1,49 @@
 #!/bin/bash
 set -e
 
-RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 log()  { echo -e "${BLUE}[INFO]${NC} $1"; }
 ok()   { echo -e "${GREEN}[OK]${NC} $1"; }
-warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
-err()  { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKEND_DIR="$PROJECT_DIR/backend"
 
 HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-if [ -z "$HOST_IP" ]; then
-    HOST_IP="localhost"
-fi
+[ -z "$HOST_IP" ] && HOST_IP="localhost"
 
 echo ""
 echo -e "${BLUE}============================================${NC}"
-echo -e "${BLUE}  Kanban Board - Universal Setup${NC}"
+echo -e "${BLUE}  Kanban Board - Setup${NC}"
 echo -e "${BLUE}  Host: $HOST_IP${NC}"
 echo ""
 
-log "Определение ОС..."
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    OS="linux"
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    OS="macos"
-else
-    OS="other"
-fi
-ok "ОС: $OS"
-
-log "Проверка Python..."
-if command -v python3 &> /dev/null; then
-    PYTHON_CMD="python3"
-    ok "Python: $(python3 --version)"
-else
-    err "Python 3 не найден. Установите: apt install python3 python3-venv 
-python3-pip"
-fi
-
+# 1. Venv
 log "Создание виртуального окружения..."
-VENV_DIR="$BACKEND_DIR/venv"
-if [ -d "$VENV_DIR" ]; then
-    ok "Виртуальное окружение уже существует."
-else
-    $PYTHON_CMD -m venv "$VENV_DIR"
-    ok "Виртуальное окружение создано."
-fi
+cd "$BACKEND_DIR"
+rm -rf venv
+python3 -m venv venv
+source venv/bin/activate
+ok "Venv создана."
 
-source "$VENV_DIR/bin/activate"
-
+# 2. Зависимости
 log "Установка зависимостей..."
 pip install --upgrade pip -q
-pip install -r "$BACKEND_DIR/requirements.txt" -q
+pip install -r requirements.txt -q
 pip install alembic psycopg2-binary -q
 ok "Зависимости установлены."
 
-log "Проверка Docker..."
-if ! command -v docker &> /dev/null; then
-    log "Установка Docker..."
-    curl -fsSL https://get.docker.com | bash
-fi
-if ! docker info &> /dev/null; then
-    systemctl start docker 2>/dev/null || service docker start 2>/dev/null
-    sleep 2
-fi
-ok "Docker работает."
-
+# 3. Docker контейнеры
 log "Запуск контейнеров..."
 cd "$PROJECT_DIR"
 docker compose up -d 2>/dev/null || docker-compose up -d
 
 log "Ожидание PostgreSQL..."
 for i in {1..30}; do
-    if docker exec kanban_postgres pg_isready -U kanban_user &> /dev/null; 
-then
+    if docker exec kanban_postgres pg_isready -U kanban_user &> /dev/null; then
         break
     fi
     echo -n "."
@@ -89,32 +52,34 @@ done
 echo ""
 ok "PostgreSQL готов."
 
-log "Миграции..."
+# 4. Миграции
+log "Применение миграций..."
 cd "$BACKEND_DIR"
 alembic upgrade head
 ok "Миграции применены."
 
-log "Инициализация БД..."
+# 5. Инициализация
+log "Инициализация данных..."
 uvicorn src.main:app --host 0.0.0.0 --port 8000 &
 SERVER_PID=$!
 sleep 3
 curl -s -X POST http://localhost:8000/api/v1/init > /dev/null 2>&1 || true
 kill $SERVER_PID 2>/dev/null || true
 wait $SERVER_PID 2>/dev/null || true
-ok "База инициализирована."
+ok "Данные инициализированы."
 
 echo ""
 echo -e "${GREEN}============================================${NC}"
-echo -e "${GREEN}  Все готово!${NC}"
-echo -e "${GREEN}============================================${NC}"
-echo ""
-echo -e "  Frontend:  ${BLUE}http://$HOST_IP:8000${NC}"
-echo -e "  Swagger:   ${BLUE}http://$HOST_IP:8000/docs${NC}"
+echo -e "${GREEN}  Готово!${NC}"
+echo -e "${GREEN}  Доска:   http://$HOST_IP:8000${NC}"
+echo -e "${GREEN}  Админка: http://$HOST_IP:8000/admin${NC}"
+echo -e "${GREEN}  Swagger: http://$HOST_IP:8000/docs${NC}"
 echo ""
 
-read -p "Запустить сервер сейчас? [Y/n] " -n 1 -r
+read -p "Запустить сервер? [Y/n] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]?$|^$ ]]; then
     cd "$BACKEND_DIR"
+    source venv/bin/activate
     uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 fi
