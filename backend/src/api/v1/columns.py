@@ -33,7 +33,7 @@ class ColumnResponse(BaseModel):
 router = APIRouter(tags=["columns"])
 
 
-@router.post("/", response_model=ColumnResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ColumnResponse, status_code=status.HTTP_201_CREATED)
 async def create_column(
     column_data: ColumnCreate,
     current_user: User = Depends(get_current_admin),
