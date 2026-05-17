@@ -1,56 +1,58 @@
-# backend/src/models/user.py
-import enum
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
-
-from sqlalchemy import Boolean, DateTime, Enum, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from src.core.database import Base
-
-if TYPE_CHECKING:
-    from src.models.board import Board
-    from src.models.notification import Notification
-    from src.models.task import Task
+from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
+from typing import Optional
+from enum import Enum
 
 
-class UserRole(str, enum.Enum):
+class UserRole(str, Enum):
     USER = "user"
     ADMIN = "admin"
 
 
-class User(Base):
-    __tablename__ = "users"
+# Request schemas
+class UserRegister(BaseModel):
+    """Схема для регистрации пользователя"""
+    username: str = Field(..., min_length=3, max_length=150)
+    email: EmailStr
+    password: str = Field(..., min_length=4, max_length=128)
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
-    password: Mapped[str] = mapped_column(String(128), nullable=False)
-    role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role", create_type=False),
-        default=UserRole.USER,
-        server_default="user",
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default="true", nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        server_default="CURRENT_TIMESTAMP",
-        nullable=False,
-    )
 
-    # Связи
-    owned_boards: Mapped[List["Board"]] = relationship(
-        "Board", back_populates="owner", cascade="all, delete-orphan"
-    )
-    assigned_tasks: Mapped[List["Task"]] = relationship(
-        "Task", back_populates="assignee", foreign_keys="Task.assignee_id"
-    )
-    notifications: Mapped[List["Notification"]] = relationship(
-        "Notification", back_populates="user", cascade="all, delete-orphan"
-    )
+class UserLogin(BaseModel):
+    """Схема для входа пользователя"""
+    username: str
+    password: str
 
-    def __repr__(self) -> str:
-        return f"<User(id={self.id}, username='{self.username}')>"
+
+class UserUpdate(BaseModel):
+    """Схема для обновления пользователя"""
+    username: Optional[str] = Field(None, min_length=3, max_length=150)
+    email: Optional[EmailStr] = None
+    password: Optional[str] = Field(None, min_length=4, max_length=128)
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+
+# Response schemas
+class UserResponse(BaseModel):
+    """Схема ответа с данными пользователя"""
+    id: int
+    username: str
+    email: str
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TokenResponse(BaseModel):
+    """Схема ответа с токеном"""
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class TokenData(BaseModel):
+    """Схема данных в токене"""
+    sub: Optional[int] = None

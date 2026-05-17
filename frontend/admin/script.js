@@ -1,6 +1,109 @@
-// ---------- STATE ----------
+// ═══════════════════════════════════════════════════
+//  AUTH & CONFIG
+// ═══════════════════════════════════════════════════
 const API_BASE = '/api/v1';
+let currentUser = null;
 
+// Получаем токен из localStorage
+function getAuthToken() {
+  return localStorage.getItem('access_token');
+}
+
+// Проверка авторизации и прав администратора
+async function checkAuth() {
+  const token = getAuthToken();
+  if (!token) {
+    window.location.href = '/login%20register';
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Token invalid');
+    }
+    
+    currentUser = await response.json();
+    
+    // Проверяем, что пользователь админ
+    if (currentUser.role !== 'admin') {
+      addSystemNotif('Доступ запрещён. Требуются права администратора.', 'error');
+      setTimeout(() => {
+        window.location.href = '/main';
+      }, 1500);
+      return false;
+    }
+    
+    // Показываем имя администратора
+    const adminNameEl = document.getElementById('adminName');
+    if (adminNameEl) {
+      adminNameEl.textContent = currentUser.username;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    window.location.href = '/login%20register';
+    return false;
+  }
+}
+
+// Выход из системы
+function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user');
+  window.location.href = '/login%20register';
+}
+
+// Переход на основную доску
+function goToMainBoard() {
+  window.location.href = '/main';
+}
+
+// API вызов с токеном
+async function apiCall(method, path, body = null) {
+  const token = getAuthToken();
+  const url = `${API_BASE}${path}`;
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  };
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+  
+  try {
+    const response = await fetch(url, options);
+    if (response.status === 401) {
+      logout();
+      throw new Error('Сессия истекла');
+    }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error ${response.status}: ${errorText}`);
+    }
+    if (response.status === 204) {
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('API call failed:', error);
+    addSystemNotif(error.message, "error");
+    throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
 let adminState = {
   columns: [],
   automationRules: [],
@@ -17,43 +120,12 @@ let adminState = {
 let modalCallback = null;
 let boardId = 1;
 
-// ---------- НАВИГАЦИЯ ----------
-function goToMainBoard() {
-  window.location.href = '/';
-}
-
-// ---------- API CALLS ----------
-async function apiCall(method, path, body = null) {
-  const url = `${API_BASE}${path}`;
-  const options = {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  };
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
-  
-  try {
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API error ${response.status}: ${errorText}`);
-    }
-    if (response.status === 204) {
-      return null;
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('API call failed:', error);
-    addSystemNotif(`Ошибка API: ${error.message}`, "error");
-    throw error;
-  }
-}
-
-// Загрузка доски для получения колонок
+// ═══════════════════════════════════════════════════
+//  LOAD DATA
+// ═══════════════════════════════════════════════════
 async function loadBoardData() {
+  if (!await checkAuth()) return;
+  
   try {
     const board = await apiCall('GET', `/boards/${boardId}`);
     adminState.columns = board.columns.map(col => ({
@@ -63,6 +135,7 @@ async function loadBoardData() {
       wipLimit: null
     }));
     renderColumns();
+    addSystemNotif('Данные доски загружены', 'info');
   } catch (error) {
     console.error('Load board error:', error);
     addSystemNotif('Не удалось загрузить колонки', 'error');
@@ -80,9 +153,8 @@ function getEmojiForColumn(title) {
   return emojiMap[title] || '📌';
 }
 
-// Загрузка правил автоматизации (пока мок, в API добавим позже)
+// Загрузка правил автоматизации (хранятся в localStorage до добавления API)
 async function loadRules() {
-  // TODO: когда будет API для правил, заменить на реальный запрос
   const saved = localStorage.getItem("kanban_admin_rules");
   if (saved) {
     try {
@@ -131,9 +203,6 @@ function loadFromLocal() {
   if (notifyMove) notifyMove.checked = adminState.notificationSettings.onTaskMove;
   if (notifyDeadline) notifyDeadline.checked = adminState.notificationSettings.onDeadlineSoon;
   if (webhookUrl) webhookUrl.value = adminState.notificationSettings.webhook || "";
-  
-  loadBoardData();
-  loadRules();
 }
 
 function addSystemNotif(msg, type = "info") {
@@ -215,6 +284,9 @@ function simulateLoad() {
   addSystemNotif("Симуляция: добавлено 5 тестовых событий в очередь", "info");
 }
 
+// ═══════════════════════════════════════════════════
+//  RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════
 function renderColumns() {
   const container = document.getElementById("columnsList");
   if (!container) return;
@@ -292,13 +364,19 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// CRUD Columns (через API)
+// ═══════════════════════════════════════════════════
+//  COLUMN CRUD
+// ═══════════════════════════════════════════════════
 async function openAddColumnModal() {
-  document.getElementById("modalTitle").innerText = "Новая колонка";
-  document.getElementById("modalBody").innerHTML = `
-    <div class="form-group"><label>Название:</label><input id="colTitle" placeholder="In Review"></div>
-    <div class="form-group"><label>Эмодзи:</label><input id="colEmoji" value="📌"></div>
-  `;
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  if (modalTitle) modalTitle.innerText = "Новая колонка";
+  if (modalBody) {
+    modalBody.innerHTML = `
+      <div class="form-group"><label>Название:</label><input id="colTitle" placeholder="In Review"></div>
+      <div class="form-group"><label>Эмодзи:</label><input id="colEmoji" value="📌"></div>
+    `;
+  }
   modalCallback = async () => {
     const title = document.getElementById("colTitle").value.trim();
     if (!title) return;
@@ -311,18 +389,23 @@ async function openAddColumnModal() {
       addSystemNotif('Ошибка добавления колонки', 'error');
     }
   };
-  document.getElementById("modal").classList.add("active");
+  const modal = document.getElementById("modal");
+  if (modal) modal.classList.add("active");
 }
 
 async function editColumn(id) {
   const col = adminState.columns.find(c => c.id === id);
   if (!col) return;
   
-  document.getElementById("modalTitle").innerText = "Редактировать колонку";
-  document.getElementById("modalBody").innerHTML = `
-    <div class="form-group"><label>Название:</label><input id="colTitle" value="${escapeHtml(col.title)}"></div>
-    <div class="form-group"><label>Эмодзи:</label><input id="colEmoji" value="${col.emoji || "📌"}"></div>
-  `;
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  if (modalTitle) modalTitle.innerText = "Редактировать колонку";
+  if (modalBody) {
+    modalBody.innerHTML = `
+      <div class="form-group"><label>Название:</label><input id="colTitle" value="${escapeHtml(col.title)}"></div>
+      <div class="form-group"><label>Эмодзи:</label><input id="colEmoji" value="${col.emoji || "📌"}"></div>
+    `;
+  }
   modalCallback = async () => {
     const newTitle = document.getElementById("colTitle").value;
     // TODO: когда будет API для обновления колонки
@@ -333,7 +416,8 @@ async function editColumn(id) {
     closeModal();
     addSystemNotif(`Колонка переименована в "${newTitle}"`, "info");
   };
-  document.getElementById("modal").classList.add("active");
+  const modal = document.getElementById("modal");
+  if (modal) modal.classList.add("active");
 }
 
 async function deleteColumn(id) {
@@ -346,26 +430,32 @@ async function deleteColumn(id) {
   }
 }
 
-// Rules
+// ═══════════════════════════════════════════════════
+//  RULES CRUD
+// ═══════════════════════════════════════════════════
 function openAddRuleModal() {
-  document.getElementById("modalTitle").innerText = "Новое правило автоматизации";
-  document.getElementById("modalBody").innerHTML = `
-    <div class="form-group"><label>Название:</label><input id="ruleName" placeholder="Критичные задачи в In Progress"></div>
-    <div class="form-group"><label>Триггер:</label>
-      <select id="ruleTrigger">
-        <option value="priority:CRITICAL">Приоритет Критичный</option>
-        <option value="deadline_overdue">Дедлайн просрочен</option>
-        <option value="tag:срочно">Тег "срочно"</option>
-      </select>
-    </div>
-    <div class="form-group"><label>Действие:</label>
-      <select id="ruleAction">
-        <option value="move:2">Переместить в In Progress</option>
-        <option value="notify:admin">Уведомить админа</option>
-        <option value="set_priority:HIGH">Изменить приоритет на HIGH</option>
-      </select>
-    </div>
-  `;
+  const modalTitle = document.getElementById("modalTitle");
+  const modalBody = document.getElementById("modalBody");
+  if (modalTitle) modalTitle.innerText = "Новое правило автоматизации";
+  if (modalBody) {
+    modalBody.innerHTML = `
+      <div class="form-group"><label>Название:</label><input id="ruleName" placeholder="Критичные задачи в In Progress"></div>
+      <div class="form-group"><label>Триггер:</label>
+        <select id="ruleTrigger">
+          <option value="priority:CRITICAL">Приоритет Критичный</option>
+          <option value="deadline_overdue">Дедлайн просрочен</option>
+          <option value="tag:срочно">Тег "срочно"</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Действие:</label>
+        <select id="ruleAction">
+          <option value="move:2">Переместить в In Progress</option>
+          <option value="notify:admin">Уведомить админа</option>
+          <option value="set_priority:HIGH">Изменить приоритет на HIGH</option>
+        </select>
+      </div>
+    `;
+  }
   modalCallback = () => {
     const name = document.getElementById("ruleName").value.trim();
     if (!name) return;
@@ -381,7 +471,8 @@ function openAddRuleModal() {
     closeModal();
     addSystemNotif(`Правило "${name}" добавлено`, "info");
   };
-  document.getElementById("modal").classList.add("active");
+  const modal = document.getElementById("modal");
+  if (modal) modal.classList.add("active");
 }
 
 function toggleRule(id) {
@@ -404,6 +495,9 @@ function deleteRule(id) {
   }
 }
 
+// ═══════════════════════════════════════════════════
+//  NOTIFICATION SETTINGS
+// ═══════════════════════════════════════════════════
 function saveNotificationSettings() {
   adminState.notificationSettings = {
     onTaskCreate: document.getElementById("notifyTaskCreate").checked,
@@ -416,11 +510,15 @@ function saveNotificationSettings() {
 }
 
 function sendTestNotification() {
-  const msg = document.getElementById("testNotifMsg").value || "Тестовое уведомление от администратора";
+  const msgInput = document.getElementById("testNotifMsg");
+  const msg = msgInput ? (msgInput.value || "Тестовое уведомление от администратора") : "Тестовое уведомление от администратора";
   addSystemNotif(`📢 ${msg}`, "info");
   enqueueEvent({ type: "ADMIN_BROADCAST", message: msg });
 }
 
+// ═══════════════════════════════════════════════════
+//  EXPORT / IMPORT
+// ═══════════════════════════════════════════════════
 function exportSettings() {
   const data = { 
     columns: adminState.columns, 
@@ -466,7 +564,9 @@ function refreshData() {
   addSystemNotif("Данные админки обновлены", "info"); 
 }
 
-// UI Helpers
+// ═══════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════
 function switchTab(tab) {
   document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
   const tabId = document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
@@ -498,7 +598,7 @@ function submitModal() {
 }
 
 function showAbout() { 
-  alert("KanbanOS 95 Admin Panel\nВерсия 1.0\nEvent-driven архитектура\nГотов к интеграции с RabbitMQ/Kafka\n\n© 1995-2026\nКоманда МГТУ Носова BitKillers"); 
+  alert("KanbanOS 95 Admin Panel\nВерсия 2.0\nEvent-driven архитектура\nГотов к интеграции с RabbitMQ/Kafka\n\n© 1995-2026\nКоманда МГТУ Носова BitKillers"); 
 }
 
 function updateClock() { 
@@ -507,6 +607,9 @@ function updateClock() {
   if (clockEl) clockEl.innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); 
 }
 
+// ═══════════════════════════════════════════════════
+//  EVENT LISTENERS & INIT
+// ═══════════════════════════════════════════════════
 setInterval(updateClock, 1000); 
 updateClock();
 
@@ -518,4 +621,13 @@ document.addEventListener("click", (e) => {
   }
 });
 
-loadFromLocal();
+// Инициализация
+async function init() {
+  if (!await checkAuth()) return;
+  loadFromLocal();
+  await loadBoardData();
+  loadRules();
+  renderAll();
+}
+
+init();

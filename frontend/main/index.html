@@ -1,10 +1,9 @@
-<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KanbanOS 95 — Система управления задачами</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/main/style.css">
 </head>
 <body>
 
@@ -17,13 +16,17 @@
       <div class="icon-img">📋</div>
       <div class="icon-label">Kanban Board</div>
     </div>
-    <div class="desktop-icon" ondblclick="window.location.href='/admin'">
+    <div class="desktop-icon" ondblclick="goToAdmin()">
       <div class="icon-img">⚙️</div>
       <div class="icon-label">Администрирование</div>
     </div>
     <div class="desktop-icon" ondblclick="showMeme()">
       <div class="icon-img">🐱</div>
       <div class="icon-label">Котик</div>
+    </div>
+    <div class="desktop-icon" ondblclick="logout()">
+      <div class="icon-img">🚪</div>
+      <div class="icon-label">Выход</div>
     </div>
   </div>
 
@@ -353,6 +356,6 @@
 <!-- Notifications container -->
 <div id="notifContainer" style="position:fixed; bottom:calc(var(--taskbar-h)+8px); right:8px; display:flex; flex-direction:column-reverse; gap:4px; z-index:5000;"></div>
 
-<script src="/static/script.js"></script>
+<script src="/static/main/script.js"></script>
 </body>
 </html>

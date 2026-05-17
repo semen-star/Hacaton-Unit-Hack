@@ -1,28 +1,83 @@
 // ═══════════════════════════════════════════════════
-//  STATE
+//  AUTH & CONFIG
 // ═══════════════════════════════════════════════════
 const API_BASE = '/api/v1';
-const USE_MOCK = false; // ← используем реальный бэкенд
+let currentUser = null;
 
-let state = {
-  columns: [],
-  nextId: 1,
-  draggedTaskId: null,
-  draggedFromCol: null,
-  compactMode: false,
-  filterOverdue: false,
-  boardId: 1  // у нас одна доска с id=1
-};
+// Получаем токен из localStorage
+function getAuthToken() {
+  return localStorage.getItem('access_token');
+}
 
-// ═══════════════════════════════════════════════════
-//  API CALLS
-// ═══════════════════════════════════════════════════
+// Проверка авторизации
+async function checkAuth() {
+  const token = getAuthToken();
+  if (!token) {
+    window.location.href = '/login%20register';
+    return false;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Token invalid');
+    }
+    
+    currentUser = await response.json();
+    
+    // Показываем имя пользователя в тулбаре
+    const userInfo = document.getElementById('userInfo');
+    if (userInfo) {
+      userInfo.innerHTML = `👤 ${escapeHtml(currentUser.username)}`;
+    }
+    
+    // Показываем кнопку админки только для админов
+    const adminIcon = document.querySelector('.desktop-icon[ondblclick="goToAdmin()"]');
+    if (adminIcon && currentUser.role !== 'admin') {
+      adminIcon.style.display = 'none';
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    window.location.href = '/login%20register';
+    return false;
+  }
+}
+
+// Выход из системы
+function logout() {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user');
+  showNotif('👋', 'До свидания!', 'Вы вышли из системы');
+  setTimeout(() => {
+    window.location.href = '/login%20register';
+  }, 500);
+}
+
+// Переход в админку (с проверкой роли)
+function goToAdmin() {
+  if (currentUser && currentUser.role === 'admin') {
+    window.location.href = '/admin';
+  } else {
+    showNotif('⛔', 'Доступ запрещён', 'Только для администраторов');
+  }
+}
+
+// API вызов с токеном
 async function apiCall(method, path, body = null) {
+  const token = getAuthToken();
   const url = `${API_BASE}${path}`;
   const options = {
     method,
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
     },
   };
   if (body) {
@@ -31,6 +86,10 @@ async function apiCall(method, path, body = null) {
   
   try {
     const response = await fetch(url, options);
+    if (response.status === 401) {
+      logout();
+      throw new Error('Сессия истекла');
+    }
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`API error ${response.status}: ${errorText}`);
@@ -47,9 +106,24 @@ async function apiCall(method, path, body = null) {
 }
 
 // ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let state = {
+  columns: [],
+  nextId: 1,
+  draggedTaskId: null,
+  draggedFromCol: null,
+  compactMode: false,
+  filterOverdue: false,
+  boardId: 1
+};
+
+// ═══════════════════════════════════════════════════
 //  BOARD LOAD
 // ═══════════════════════════════════════════════════
 async function loadBoard() {
+  if (!await checkAuth()) return;
+  
   setToolbarStatus('Загрузка...');
   try {
     const board = await apiCall('GET', `/boards/${state.boardId}`);
@@ -58,7 +132,7 @@ async function loadBoard() {
       id: col.id,
       title: col.title,
       emoji: getEmojiForColumn(col.title),
-      tasks: col.tasks.map(task => ({
+      tasks: (col.tasks || []).map(task => ({
         id: task.id,
         title: task.title,
         description: task.description || '',
@@ -75,10 +149,7 @@ async function loadBoard() {
   } catch (error) {
     console.error('Load board error:', error);
     setToolbarStatus('Ошибка!');
-    // Если API недоступен, показываем сообщение
-    if (!USE_MOCK) {
-      showNotif('⚠️', 'Ошибка подключения', 'Не удалось загрузить доску. Убедитесь, что сервер запущен.');
-    }
+    showNotif('⚠️', 'Ошибка подключения', 'Не удалось загрузить доску.');
   }
 }
 
@@ -98,6 +169,8 @@ function getEmojiForColumn(title) {
 // ═══════════════════════════════════════════════════
 function renderBoard() {
   const board = document.getElementById('board');
+  if (!board) return;
+  
   const addBtn = board.querySelector('.add-column-btn');
   
   // Remove old columns
@@ -253,7 +326,7 @@ async function drop(e) {
     setLastEvent(`Задача #${taskId} → ${newColName}`);
     showNotif('↗️', 'Задача перемещена', `#${taskId} → ${newColName}`);
     
-    await loadBoard(); // Перезагружаем всю доску
+    await loadBoard();
   } catch (error) {
     console.error('Move error:', error);
     showNotif('❌', 'Ошибка', 'Не удалось переместить задачу');
@@ -325,7 +398,6 @@ async function saveTask() {
   
   try {
     if (editId) {
-      // Update task
       const updateData = { 
         title, 
         description: desc, 
@@ -335,7 +407,6 @@ async function saveTask() {
       };
       await apiCall('PUT', `/tasks/${editId}`, updateData);
       
-      // Check if column changed
       let currentColId = null;
       for (const col of state.columns) {
         if (col.tasks.find(t => t.id === editId)) {
@@ -353,7 +424,6 @@ async function saveTask() {
       setLastEvent(`Задача #${editId} обновлена`);
       showNotif('✏️', 'Задача обновлена', title);
     } else {
-      // Create task
       const createData = {
         title,
         description: desc,
@@ -367,7 +437,7 @@ async function saveTask() {
     }
     
     closeTaskModal();
-    await loadBoard(); // Перезагружаем доску
+    await loadBoard();
   } catch (error) {
     console.error('Save error:', error);
     showNotif('❌', 'Ошибка', 'Не удалось сохранить задачу');
@@ -423,9 +493,6 @@ async function clearDone() {
   await loadBoard();
 }
 
-// ═══════════════════════════════════════════════════
-//  COLUMN MANAGEMENT (только для пользователей)
-// ═══════════════════════════════════════════════════
 async function addColumn() {
   closeMenus();
   const name = prompt('Название новой колонки:');
@@ -445,7 +512,7 @@ async function addColumn() {
 }
 
 // ═══════════════════════════════════════════════════
-//  SORTING & FILTERING (клиентская фильтрация)
+//  SORTING & FILTERING
 // ═══════════════════════════════════════════════════
 function sortByPriority() {
   const order = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
@@ -488,14 +555,15 @@ function exportData() {
 }
 
 // ═══════════════════════════════════════════════════
-//  WINDOW CONTROLS (те же, что и были)
+//  WINDOW CONTROLS
 // ═══════════════════════════════════════════════════
 let windowMinimized = false;
 let windowMaximized = true;
 
 function minimizeWindow() {
   windowMinimized = true;
-  document.getElementById('mainWindow').classList.add('minimized');
+  const mainWindow = document.getElementById('mainWindow');
+  if (mainWindow) mainWindow.classList.add('minimized');
   const taskbarBtn = document.getElementById('taskbarMainBtn');
   if (taskbarBtn) taskbarBtn.classList.remove('active');
 }
@@ -503,6 +571,8 @@ function minimizeWindow() {
 function maximizeWindow() {
   const win = document.getElementById('mainWindow');
   const btn = document.getElementById('maxBtn');
+  if (!win || !btn) return;
+  
   if (windowMaximized) {
     win.style.width = '70%';
     win.style.height = '70%';
@@ -525,7 +595,8 @@ function maximizeWindow() {
 function closeWindow() {
   showMsgBox('⚠️', 'Выход', 'Вы уверены, что хотите закрыть KanbanOS 95?\n\nВсе несохранённые данные будут потеряны.', [
     { label: 'Да', action: () => { 
-      document.getElementById('mainWindow').style.display = 'none'; 
+      const mainWindow = document.getElementById('mainWindow');
+      if (mainWindow) mainWindow.style.display = 'none'; 
       showNotif('👋', 'До свидания!', 'Окно закрыто. Дважды кликните по иконке на рабочем столе.'); 
     } },
     { label: 'Нет', action: closeMsgBox }
@@ -534,6 +605,8 @@ function closeWindow() {
 
 function restoreWindow() {
   const win = document.getElementById('mainWindow');
+  if (!win) return;
+  
   win.style.display = '';
   win.classList.remove('minimized');
   win.classList.add('main-window');
@@ -566,6 +639,8 @@ function closeMenus() {
 function toggleStartMenu() {
   const sm = document.getElementById('startMenu');
   const btn = document.getElementById('startBtn');
+  if (!sm) return;
+  
   const isOpen = sm.classList.contains('open');
   sm.classList.toggle('open');
   if (btn) btn.classList.toggle('open');
@@ -579,7 +654,7 @@ function closeStartMenu() {
 }
 
 // ═══════════════════════════════════════════════════
-//  FUN STUFF (мемы, пасхалки)
+//  FUN STUFF
 // ═══════════════════════════════════════════════════
 const CATS = ['😸', '😹', '😺', '😻', '😼', '🐱', '🙀'];
 const MEMES = [
