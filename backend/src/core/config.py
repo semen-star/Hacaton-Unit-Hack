@@ -3,7 +3,7 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+asyncpg://kanban_admin:FJr34f9gf35fh@localhost:11114/kanban_db"
+    DATABASE_URL: str = "postgresql+asyncpg://kanban_user:kanban_pass@localhost:5432/kanban_db"
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
     SECRET_KEY: str = "your-super-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
