@@ -1,4 +1,4 @@
-cat > /home/semka/Hacaton-Unit-Hack/backend/src/api/v1/columns.py << 'EOF'
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -165,4 +165,3 @@ async def get_board_columns(
         }
         for col in columns
     ]
-EOF
