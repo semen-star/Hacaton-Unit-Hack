@@ -122,7 +122,6 @@ let state = {
 //  BOARD LOAD
 // ═══════════════════════════════════════════════════
 async function loadBoard() {
-  if (!await checkAuth()) return;
   
   setToolbarStatus('Загрузка...');
   try {

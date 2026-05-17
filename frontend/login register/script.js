@@ -1,4 +1,3 @@
-cat > /home/semka/Hacaton-Unit-Hack/frontend/login\ register/script.js << 'EOF'
 const API_BASE = '/api/v1';
 let currentTab = 'login';
 
@@ -70,12 +69,23 @@ async function login() {
     
     const data = await response.json();
     
+    // ========== ВСТАВЬ ЭТОТ БЛОК ЗДЕСЬ ==========
+    console.log('Raw token from server:', data.access_token);
+    console.log('Token type:', typeof data.access_token);
+    // ============================================
+    
     // Сохраняем токен и данные пользователя
     localStorage.setItem('access_token', data.access_token);
+    
+    // ========== И ЭТОТ БЛОК ТОЖЕ ЗДЕСЬ ==========
+    const savedToken = localStorage.getItem('access_token');
+    console.log('Saved token:', savedToken);
+    console.log('Saved token length:', savedToken?.length);
+    // =============================================
+    
     localStorage.setItem('user', JSON.stringify(data.user));
     
     console.log('Login successful!', data.user);
-    console.log('Token saved:', localStorage.getItem('access_token'));
     
     showNotification(`Добро пожаловать, ${data.user.username}!`);
     setStatus('Вход выполнен! Перенаправление...');
@@ -134,6 +144,21 @@ async function register() {
     }
     
     const data = await response.json();
+    
+ // ========== ВСТАВЬ ЭТОТ БЛОК ЗДЕСЬ ==========
+  console.log('Raw token from server:', data.access_token);
+  console.log('Token type:', typeof data.access_token);
+  // ============================================
+  
+  localStorage.setItem('access_token', data.access_token);
+  
+  // ========== И ЭТОТ БЛОК ТОЖЕ ЗДЕСЬ ==========
+  const savedToken = localStorage.getItem('access_token');
+  console.log('Saved token:', savedToken);
+  console.log('Saved token length:', savedToken?.length);
+  // =============================================
+  
+  localStorage.setItem('user', JSON.stringify(data.user));
     
     // Сохраняем токен и автоматически логиним
     localStorage.setItem('access_token', data.access_token);
@@ -212,4 +237,3 @@ document.addEventListener('click', (e) => {
 });
 
 checkExistingToken();
-EOF

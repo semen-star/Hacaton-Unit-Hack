@@ -124,7 +124,6 @@ let boardId = 1;
 //  LOAD DATA
 // ═══════════════════════════════════════════════════
 async function loadBoardData() {
-  if (!await checkAuth()) return;
   
   try {
     const board = await apiCall('GET', `/boards/${boardId}`);

@@ -15,7 +15,6 @@ security = HTTPBearer()
 async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> int:
-    """Получение ID текущего пользователя из токена"""
     token = credentials.credentials
     payload = decode_access_token(token)
     
@@ -31,6 +30,16 @@ async def get_current_user_id(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Защита от мусора
+    try:
+        return int(user_id)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user id in token",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
@@ -144,7 +153,7 @@ async def login(
         )
     
     # Создание токена
-    access_token = create_access_token(data={"sub": user.id})
+    access_token = create_access_token(data={"sub": str(user.id)})
     
     return TokenResponse(
         access_token=access_token,
