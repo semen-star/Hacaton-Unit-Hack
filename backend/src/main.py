@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from .core.config import get_settings
 from .core.database import engine, Base
-from .api.v1 import tasks, init, auth, boards, columns, notifications
+from .api.v1 import tasks, init, auth, boards, columns, notification, automation, tags, ws
 
 settings = get_settings()
 
@@ -29,7 +29,7 @@ app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(tasks.router, prefix="/api/v1", tags=["tasks"])
 app.include_router(boards.router, prefix="/api/v1", tags=["boards"])
 app.include_router(columns.router, prefix="/api/v1", tags=["columns"])
-app.include_router(notifications.router, prefix="/api/v1", tags=["notifications"])
+app.include_router(notification.router, prefix="/api/v1", tags=["notifications"])
 app.include_router(init.router, prefix="/api/v1", tags=["init"])
 
 # Frontend
